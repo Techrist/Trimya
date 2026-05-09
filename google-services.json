@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "324292513154",
+    "project_id": "trimya-68ae2",
+    "storage_bucket": "trimya-68ae2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:324292513154:android:e7445d4620d1328a59939b",
+        "android_client_info": {
+          "package_name": "app.trimya.mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyARwuYJruwsVf5gVm1Kmsod0V8w0vK1ZFY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
