@@ -1,0 +1,67 @@
+{
+  "expo": {
+    "name": "Trimya",
+    "slug": "trimya",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "trimya",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0A0A0A"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.trimya.mobile",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Trimya utilise la caméra pour scanner les QR codes des clients fidèles.",
+        "NSPhotoLibraryUsageDescription": "Trimya a besoin d'accéder à tes photos pour ajouter une photo de profil aux coiffeurs."
+      }
+    },
+    "android": {
+      "package": "app.trimya.mobile",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0A0A0A"
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.VIBRATE",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Trimya a besoin de la caméra pour scanner les QR codes des clients."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Trimya a besoin d'accéder à tes photos pour ajouter une photo de profil aux coiffeurs."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#FF5722"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "419d4de4-7ecc-4a64-9724-56a92041fecc"
+      }
+    }
+  }
+}
