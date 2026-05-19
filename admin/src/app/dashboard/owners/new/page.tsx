@@ -127,7 +127,7 @@ export default function NewOwnerPage() {
       </Link>
 
       <header>
-        <h1 className="text-2xl font-bold">Nouveau propriétaire</h1>
+        <h1 className="text-xl md:text-2xl font-bold">Nouveau propriétaire</h1>
         <p className="mt-1 text-sm text-text-muted">
           Un compte Firebase Auth sera créé avec un mot de passe temporaire à
           communiquer au propriétaire.

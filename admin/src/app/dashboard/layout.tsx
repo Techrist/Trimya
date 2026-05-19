@@ -11,11 +11,11 @@ export default function DashboardLayout({
   return (
     <AuthGate>
       {(user) => (
-        // h-screen + overflow-hidden ensures the outer page does not scroll;
-        // only the <main> area scrolls vertically while the sidebar stays put.
-        <div className="flex h-screen overflow-hidden">
+        // En desktop : sidebar fixée + main scrollable.
+        // En mobile : top bar sticky (gérée dans <Sidebar>) + main pleine largeur scrollable.
+        <div className="flex h-screen flex-col overflow-hidden md:flex-row">
           <Sidebar user={user} />
-          <main className="flex-1 overflow-y-auto overflow-x-hidden px-6 py-8 md:px-10">
+          <main className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-5 md:px-10 md:py-8">
             {children}
           </main>
         </div>

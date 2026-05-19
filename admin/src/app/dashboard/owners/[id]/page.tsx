@@ -168,7 +168,7 @@ export default function OwnerDetailPage({
 
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">{owner.name}</h1>
+          <h1 className="text-xl md:text-2xl font-bold">{owner.name}</h1>
           <p className="mt-1 flex items-center gap-3 text-sm text-text-muted">
             <span className="flex items-center gap-1">
               <Mail className="h-3.5 w-3.5" />

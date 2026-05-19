@@ -24,24 +24,28 @@ export function KpiCard({
   tone = "primary",
 }: KpiCardProps) {
   return (
-    <div className="rounded-xl border border-border bg-surface p-5">
-      <div className="flex items-start justify-between">
+    <div className="rounded-xl border border-border bg-surface p-4 md:p-5">
+      <div className="flex items-start justify-between gap-2">
         <span className="text-xs font-semibold uppercase tracking-wider text-text-muted">
           {label}
         </span>
         {Icon ? (
           <span
             className={cn(
-              "flex h-9 w-9 items-center justify-center rounded-lg",
+              "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg md:h-9 md:w-9",
               TONE_BG[tone],
             )}
           >
-            <Icon className="h-5 w-5" strokeWidth={2.2} />
+            <Icon className="h-4 w-4 md:h-5 md:w-5" strokeWidth={2.2} />
           </span>
         ) : null}
       </div>
-      <div className="mt-3 text-3xl font-bold text-text">{value}</div>
-      {hint ? <div className="mt-1 text-xs text-text-dim">{hint}</div> : null}
+      <div className="mt-3 truncate text-2xl font-bold text-text md:text-3xl">
+        {value}
+      </div>
+      {hint ? (
+        <div className="mt-1 line-clamp-2 text-xs text-text-dim">{hint}</div>
+      ) : null}
     </div>
   );
 }
