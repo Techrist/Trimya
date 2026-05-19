@@ -1,5 +1,6 @@
 import React from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import {
@@ -22,10 +23,14 @@ import { colors, typography } from '@/theme';
 import { useApp } from '@/contexts/AppContext';
 import { useSalonUnreadCount } from '@/hooks/useSalonUnreadCount';
 import { useSalonPendingReservations } from '@/hooks/useSalonPendingReservations';
+import { useSalonForegroundAlerts } from '@/hooks/useSalonForegroundAlerts';
+import { useSalonPlan } from '@/hooks/useSalonPlan';
+import { TrialBanner } from '@/components/TrialBanner';
 import { useT } from '@/i18n';
 
 import { SalonScannerScreen } from '@/screens/salon/SalonScannerScreen';
 import { SalonAddCutScreen } from '@/screens/salon/SalonAddCutScreen';
+import { SalonQueueScreen } from '@/screens/salon/SalonQueueScreen';
 import { SalonCustomersScreen } from '@/screens/salon/SalonCustomersScreen';
 import { SalonCustomerDetailScreen } from '@/screens/salon/SalonCustomerDetailScreen';
 import { SalonComposeNotificationScreen } from '@/screens/salon/SalonComposeNotificationScreen';
@@ -58,6 +63,7 @@ function ScannerStackNavigator() {
     >
       <ScannerStack.Screen name="Scanner" component={SalonScannerScreen} />
       <ScannerStack.Screen name="AddCut" component={SalonAddCutScreen} />
+      <ScannerStack.Screen name="Queue" component={SalonQueueScreen} />
     </ScannerStack.Navigator>
   );
 }
@@ -145,8 +151,20 @@ export function SalonTabsNavigator() {
   const unread = useSalonUnreadCount(salonId);
   const pendingRdv = useSalonPendingReservations(salonId);
   const { t } = useT();
+  const { trial, trialDays } = useSalonPlan(salonId);
+
+  // Local foreground alerts (no FCM required) — fires a banner whenever
+  // a customer sends a new message while the salon app is alive.
+  useSalonForegroundAlerts(salonId);
 
   return (
+    <View style={styles.root}>
+      {trial ? (
+        <SafeAreaView edges={['top']} style={styles.bannerSafeArea}>
+          <TrialBanner daysLeft={trialDays} />
+        </SafeAreaView>
+      ) : null}
+      <View style={styles.tabsWrap}>
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
@@ -154,6 +172,7 @@ export function SalonTabsNavigator() {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarLabelStyle: styles.tabLabel,
+        tabBarHideOnKeyboard: true,
       }}
     >
       <Tab.Screen
@@ -221,10 +240,22 @@ export function SalonTabsNavigator() {
         }}
       />
     </Tab.Navigator>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
+  bannerSafeArea: {
+    backgroundColor: colors.accent,
+  },
+  tabsWrap: {
+    flex: 1,
+  },
   tabBar: {
     backgroundColor: colors.surface,
     borderTopColor: colors.border,

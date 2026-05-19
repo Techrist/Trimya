@@ -7,13 +7,25 @@ import {
   FlatList,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { ChevronLeft, BarChart3 } from 'lucide-react-native';
+import {
+  ChevronLeft,
+  BarChart3,
+  Star,
+  AlertTriangle,
+} from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { Card } from '@/components/Card';
+import { LockedFeature } from '@/components/LockedFeature';
 import { BarberAvatar } from '@/components/BarberAvatar';
 import { useApp } from '@/contexts/AppContext';
+import { useSalonPlan } from '@/hooks/useSalonPlan';
 import { subscribeBarbers } from '@/services/barbers';
 import { subscribeSalonCuts } from '@/services/cuts';
+import {
+  getBarberRatingsForSalon,
+  isBarberFlagged,
+  type BarberRatingAggregate,
+} from '@/services/reviews';
 import { formatPrice } from '@/utils/currency';
 import { useT } from '@/i18n';
 import { colors, radius, spacing, typography } from '@/theme';
@@ -49,19 +61,27 @@ export function SalonBarberStatsScreen() {
   const nav = useNavigation<any>();
   const { salonId } = useApp();
   const { t } = useT();
+  const { limits, loading: planLoading } = useSalonPlan(salonId);
   const [period, setPeriod] = useState<StatsPeriod>('month');
   const [barbers, setBarbers] = useState<Barber[]>([]);
   const [cuts, setCuts] = useState<Cut[]>([]);
+  // Agrégat des notes par coiffeur (tous périodes confondues — les notes
+  // sont une stat de réputation, pas une stat de période).
+  const [ratings, setRatings] = useState<Map<string, BarberRatingAggregate>>(
+    new Map(),
+  );
 
   useEffect(() => {
-    if (!salonId) return;
+    if (!salonId || !limits.perBarberStats) return;
     const unsubB = subscribeBarbers(salonId, setBarbers);
     const unsubC = subscribeSalonCuts(salonId, setCuts);
+    // Pull one-shot des notes (rafraîchi à chaque entrée d'écran).
+    getBarberRatingsForSalon(salonId).then(setRatings).catch(() => setRatings(new Map()));
     return () => {
       unsubB();
       unsubC();
     };
-  }, [salonId]);
+  }, [salonId, limits.perBarberStats]);
 
   const stats: BarberPeriodStats[] = useMemo(() => {
     const since = periodStart(period);
@@ -77,6 +97,11 @@ export function SalonBarberStatsScreen() {
 
   const grandTotal = stats.reduce((s, x) => s + x.totalAmount, 0);
   const totalCuts = stats.reduce((s, x) => s + x.cutCount, 0);
+
+  // Tous les hooks au-dessus → return anticipé safe.
+  if (!planLoading && !limits.perBarberStats) {
+    return <LockedFeature requiredPlan="pro" />;
+  }
 
   return (
     <Screen padded={false}>
@@ -132,7 +157,12 @@ export function SalonBarberStatsScreen() {
           contentContainerStyle={styles.list}
           ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
           renderItem={({ item, index }) => (
-            <BarberStatRow stats={item} rank={index + 1} t={t} />
+            <BarberStatRow
+              stats={item}
+              rating={ratings.get(item.barber.id) || null}
+              rank={index + 1}
+              t={t}
+            />
           )}
         />
       )}
@@ -142,27 +172,69 @@ export function SalonBarberStatsScreen() {
 
 function BarberStatRow({
   stats,
+  rating,
   rank,
   t,
 }: {
   stats: BarberPeriodStats;
+  rating: BarberRatingAggregate | null;
   rank: number;
   t: (key: any, params?: Record<string, string | number>) => string;
 }) {
+  const flagged = rating ? isBarberFlagged(rating) : false;
   return (
-    <Card>
+    <Card style={flagged ? styles.cardFlagged : undefined}>
       <View style={styles.row}>
         <View style={styles.rank}>
           <Text style={styles.rankText}>#{rank}</Text>
         </View>
         <BarberAvatar barber={stats.barber} size={44} />
         <View style={{ flex: 1 }}>
-          <Text style={styles.name}>{stats.barber.name}</Text>
+          <View style={styles.nameRow}>
+            <Text style={styles.name}>{stats.barber.name}</Text>
+            {flagged ? (
+              <View style={styles.flagBadge}>
+                <AlertTriangle
+                  color={colors.danger}
+                  size={12}
+                  strokeWidth={2.4}
+                />
+                <Text style={styles.flagText}>
+                  {t('salon.barberStats.flagged')}
+                </Text>
+              </View>
+            ) : null}
+          </View>
           <Text style={styles.meta}>
             {t(stats.cutCount > 1 ? 'salon.barberStats.cutsCountPlural' : 'salon.barberStats.cutsCount', { count: stats.cutCount })}
             {stats.rewardCount > 0 &&
               ` · ${t(stats.rewardCount > 1 ? 'salon.barberStats.rewardsCountPlural' : 'salon.barberStats.rewardsCount', { count: stats.rewardCount })}`}
           </Text>
+          {rating && rating.reviewCount > 0 ? (
+            <View style={styles.ratingRow}>
+              <Star
+                color={colors.accent}
+                fill={colors.accent}
+                size={12}
+                strokeWidth={2}
+              />
+              <Text style={styles.ratingValue}>
+                {rating.averageRating.toFixed(1)}
+              </Text>
+              <Text style={styles.ratingCount}>
+                {t(
+                  rating.reviewCount > 1
+                    ? 'salon.barberStats.reviewsCountPlural'
+                    : 'salon.barberStats.reviewsCount',
+                  { count: rating.reviewCount },
+                )}
+              </Text>
+            </View>
+          ) : (
+            <Text style={styles.ratingNone}>
+              {t('salon.barberStats.noReviews')}
+            </Text>
+          )}
         </View>
         <Text style={styles.amount}>{formatPrice(stats.totalAmount)}</Text>
       </View>
@@ -299,5 +371,54 @@ const styles = StyleSheet.create({
   amount: {
     ...typography.h3,
     color: colors.primary,
+  },
+  cardFlagged: {
+    borderWidth: 1.5,
+    borderColor: colors.danger,
+    backgroundColor: 'rgba(239, 68, 68, 0.05)',
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flexWrap: 'wrap',
+  },
+  flagBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+  },
+  flagText: {
+    ...typography.caption,
+    fontWeight: '800',
+    color: colors.danger,
+    fontSize: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  ratingValue: {
+    ...typography.caption,
+    fontWeight: '800',
+    color: colors.accent,
+  },
+  ratingCount: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+  ratingNone: {
+    ...typography.caption,
+    color: colors.textDim,
+    fontStyle: 'italic',
+    marginTop: 4,
   },
 });

@@ -8,6 +8,7 @@ import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { storage } from '@/services/storage';
 import { subscribeCustomer } from '@/services/customers';
+import { buildQrPayload, QR_VALIDITY_MS } from '@/lib/qr';
 import { useT } from '@/i18n';
 import { colors, spacing, typography, REWARD_THRESHOLD } from '@/theme';
 import { Customer } from '@/types';
@@ -19,6 +20,8 @@ export function ClientQrScreen() {
   const nav = useNavigation<Nav>();
   const { t } = useT();
   const [customer, setCustomer] = useState<Customer | null>(null);
+  // Tick déclenche un re-render toutes les 30s pour régénérer le QR.
+  const [, setTick] = useState(0);
 
   useEffect(() => {
     let unsub: (() => void) | undefined;
@@ -30,6 +33,16 @@ export function ClientQrScreen() {
     return () => unsub?.();
   }, []);
 
+  // QR rotation : on régénère un payload toutes les 30s pour qu'un
+  // screenshot ne soit plus valide après ~1 min (cf. QR_VALIDITY_MS).
+  useEffect(() => {
+    const interval = setInterval(
+      () => setTick((n) => n + 1),
+      Math.floor(QR_VALIDITY_MS / 2),
+    );
+    return () => clearInterval(interval);
+  }, []);
+
   if (!customer) {
     return (
       <Screen centered>
@@ -38,7 +51,9 @@ export function ClientQrScreen() {
     );
   }
 
-  const qrPayload = JSON.stringify({ t: 'trimya', v: 1, id: customer.id });
+  // v=3 : payload signé temporellement (exp = now + 60s).
+  // Le scanner valide la fraîcheur via lib/qr.ts → validateQrFreshness.
+  const qrPayload = buildQrPayload(customer.id, customer.salonId);
   const isReward = customer.currentCount >= REWARD_THRESHOLD;
 
   return (

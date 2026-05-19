@@ -2,16 +2,12 @@
   "expo": {
     "name": "Trimya",
     "slug": "trimya",
-    "version": "0.1.0",
+    "version": "1.0.0",
+    "description": "Application de fidélité pour salons de coiffure — par TON ENTREPRISE",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "trimya",
     "userInterfaceStyle": "dark",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0A0A0A"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "app.trimya.mobile",
@@ -22,6 +18,7 @@
     },
     "android": {
       "package": "app.trimya.mobile",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0A0A0A"
@@ -29,7 +26,6 @@
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.VIBRATE",
-        "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
       ]
     },
@@ -55,6 +51,21 @@
         {
           "icon": "./assets/notification-icon.png",
           "color": "#FF5722"
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/logo-mark.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#0A0A0A",
+          "dark": {
+            "image": "./assets/logo-mark.png",
+            "imageWidth": 200,
+            "resizeMode": "contain",
+            "backgroundColor": "#0A0A0A"
+          }
         }
       ]
     ],

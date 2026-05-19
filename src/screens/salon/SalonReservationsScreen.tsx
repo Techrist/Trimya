@@ -11,7 +11,9 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronRight, Star, CalendarClock } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { Card } from '@/components/Card';
+import { LockedFeature } from '@/components/LockedFeature';
 import { useApp } from '@/contexts/AppContext';
+import { useSalonPlan } from '@/hooks/useSalonPlan';
 import {
   subscribeSalonReservations,
   formatReservationDateTime,
@@ -35,18 +37,22 @@ export function SalonReservationsScreen() {
   const nav = useNavigation<Nav>();
   const { salonId } = useApp();
   const { t } = useT();
+  const { limits, loading: planLoading } = useSalonPlan(salonId);
   const [list, setList] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterKey>('pending');
 
   useEffect(() => {
-    if (!salonId) return;
+    if (!salonId || !limits.reservations) {
+      setLoading(false);
+      return;
+    }
     const unsub = subscribeSalonReservations(salonId, (rows) => {
       setList(rows);
       setLoading(false);
     });
     return unsub;
-  }, [salonId]);
+  }, [salonId, limits.reservations]);
 
   const filtered = useMemo(() => {
     const now = Date.now();
@@ -71,6 +77,12 @@ export function SalonReservationsScreen() {
     }
     return [...res].sort((a, b) => b.scheduledFor - a.scheduledFor);
   }, [list, filter]);
+
+  // Tous les hooks sont déclarés au-dessus, on peut maintenant faire
+  // un return anticipé sans casser l'ordre des hooks (React Rules of Hooks).
+  if (!planLoading && !limits.reservations) {
+    return <LockedFeature requiredPlan="pro" />;
+  }
 
   const pendingCount = list.filter((r) => r.status === 'pending').length;
 

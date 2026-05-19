@@ -62,13 +62,20 @@ export function subscribeCustomer(
   cb: (customer: Customer | null) => void,
 ): () => void {
   const ref = doc(db, 'customers', customerId);
-  return onSnapshot(ref, (snap) => {
-    if (!snap.exists()) {
+  return onSnapshot(
+    ref,
+    (snap) => {
+      if (!snap.exists()) {
+        cb(null);
+        return;
+      }
+      cb({ id: snap.id, ...(snap.data() as Omit<Customer, 'id'>) });
+    },
+    (err) => {
+      console.warn('[customers] subscribeCustomer error:', err.message);
       cb(null);
-      return;
-    }
-    cb({ id: snap.id, ...(snap.data() as Omit<Customer, 'id'>) });
-  });
+    },
+  );
 }
 
 /**
@@ -79,13 +86,20 @@ export function subscribeSalonCustomers(
   cb: (customers: Customer[]) => void,
 ): () => void {
   const q = query(collection(db, 'customers'), where('salonId', '==', salonId));
-  return onSnapshot(q, (snap) => {
-    const list = snap.docs.map((d) => ({
-      id: d.id,
-      ...(d.data() as Omit<Customer, 'id'>),
-    }));
-    cb(list);
-  });
+  return onSnapshot(
+    q,
+    (snap) => {
+      const list = snap.docs.map((d) => ({
+        id: d.id,
+        ...(d.data() as Omit<Customer, 'id'>),
+      }));
+      cb(list);
+    },
+    (err) => {
+      console.warn('[customers] subscribeSalonCustomers error:', err.message);
+      cb([]);
+    },
+  );
 }
 
 export async function setCustomerVip(customerId: string, vip: boolean): Promise<void> {
@@ -112,4 +126,49 @@ export async function setCustomerPhoto(
   photo: string | null,
 ): Promise<void> {
   await updateDoc(doc(db, 'customers', customerId), { photo: photo ?? null });
+}
+
+/**
+ * Met à jour les informations personnelles : email, date de naissance,
+ * préférences capillaires. Tous les champs sont optionnels et `null` efface
+ * explicitement la valeur côté Firestore.
+ */
+export async function updateCustomerPersonalInfo(
+  customerId: string,
+  updates: {
+    email?: string | null;
+    birthdate?: string | null; // ISO YYYY-MM-DD
+    preferences?: {
+      cutNote?: string | null;
+      beardNote?: string | null;
+      allergies?: string | null;
+      favoriteBarberId?: string | null;
+    };
+  },
+): Promise<void> {
+  const patch: Record<string, unknown> = {};
+  if (updates.email !== undefined) patch.email = updates.email ?? null;
+  if (updates.birthdate !== undefined) patch.birthdate = updates.birthdate ?? null;
+  if (updates.preferences) {
+    patch.preferences = updates.preferences;
+  }
+  if (Object.keys(patch).length === 0) return;
+  await updateDoc(doc(db, 'customers', customerId), patch);
+}
+
+/**
+ * Marque le compte comme « demande de suppression » (soft-delete).
+ * Une Cloud Function planifiée fera le hard-delete + anonymisation des
+ * cuts liés après 30 jours de grâce (RGPD : période de réflexion).
+ */
+export async function requestAccountDeletion(customerId: string): Promise<void> {
+  await updateDoc(doc(db, 'customers', customerId), {
+    deletionRequestedAt: Date.now(),
+  });
+}
+
+export async function cancelAccountDeletion(customerId: string): Promise<void> {
+  await updateDoc(doc(db, 'customers', customerId), {
+    deletionRequestedAt: null,
+  });
 }

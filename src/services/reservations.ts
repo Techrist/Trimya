@@ -55,14 +55,21 @@ export function subscribeCustomerReservations(
     collection(db, 'reservations'),
     where('customerId', '==', customerId),
   );
-  return onSnapshot(q, (snap) => {
-    const list = snap.docs.map((d) => ({
-      id: d.id,
-      ...(d.data() as Omit<Reservation, 'id'>),
-    }));
-    list.sort((a, b) => b.scheduledFor - a.scheduledFor);
-    cb(list);
-  });
+  return onSnapshot(
+    q,
+    (snap) => {
+      const list = snap.docs.map((d) => ({
+        id: d.id,
+        ...(d.data() as Omit<Reservation, 'id'>),
+      }));
+      list.sort((a, b) => b.scheduledFor - a.scheduledFor);
+      cb(list);
+    },
+    (err) => {
+      console.warn('[reservations] subscribeCustomerReservations error:', err.message);
+      cb([]);
+    },
+  );
 }
 
 export function subscribeSalonReservations(
@@ -73,14 +80,21 @@ export function subscribeSalonReservations(
     collection(db, 'reservations'),
     where('salonId', '==', salonId),
   );
-  return onSnapshot(q, (snap) => {
-    const list = snap.docs.map((d) => ({
-      id: d.id,
-      ...(d.data() as Omit<Reservation, 'id'>),
-    }));
-    list.sort((a, b) => b.scheduledFor - a.scheduledFor);
-    cb(list);
-  });
+  return onSnapshot(
+    q,
+    (snap) => {
+      const list = snap.docs.map((d) => ({
+        id: d.id,
+        ...(d.data() as Omit<Reservation, 'id'>),
+      }));
+      list.sort((a, b) => b.scheduledFor - a.scheduledFor);
+      cb(list);
+    },
+    (err) => {
+      console.warn('[reservations] subscribeSalonReservations error:', err.message);
+      cb([]);
+    },
+  );
 }
 
 export async function getReservation(id: string): Promise<Reservation | null> {

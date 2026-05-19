@@ -57,23 +57,26 @@ export function ProgressIndicator({
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-    paddingVertical: spacing.lg,
+    // Padding vertical réduit pour que la carte tienne sans scroll sur
+    // les petits téléphones (le compteur est visuellement explicite,
+    // pas besoin de respirer autant).
+    paddingVertical: spacing.xs,
   },
   label: {
     ...typography.caption,
     color: colors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 1.5,
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
   },
   dotsRow: {
     flexDirection: 'row',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
+    gap: spacing.xs,
+    marginBottom: spacing.xs,
   },
   dot: {
-    width: 44,
-    height: 44,
+    width: 28,
+    height: 28,
     borderRadius: radius.pill,
   },
   dotEmpty: {
@@ -82,23 +85,23 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   countText: {
-    marginTop: spacing.sm,
+    marginTop: 0,
   },
   countBig: {
-    fontSize: 64,
+    fontSize: 36,
     fontWeight: '800',
     color: colors.text,
-    letterSpacing: -2,
+    letterSpacing: -1,
   },
   countSmall: {
-    fontSize: 32,
+    fontSize: 18,
     fontWeight: '600',
     color: colors.textMuted,
   },
   hint: {
-    ...typography.body,
+    ...typography.caption,
     color: colors.textMuted,
-    marginTop: spacing.md,
+    marginTop: spacing.xs,
     textAlign: 'center',
   },
 });

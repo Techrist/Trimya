@@ -9,7 +9,12 @@ import {
   ReservationsStackParamList,
 } from './types';
 import { colors, typography } from '@/theme';
+import { useEffect, useState } from 'react';
 import { useClientUnreadCount } from '@/hooks/useClientUnreadCount';
+import { useForegroundMessageAlerts } from '@/hooks/useForegroundMessageAlerts';
+import { storage } from '@/services/storage';
+import { subscribeConversation } from '@/services/conversations';
+import { Conversation } from '@/types';
 import { useT } from '@/i18n';
 
 import { ClientDashboardScreen } from '@/screens/client/ClientDashboardScreen';
@@ -17,6 +22,8 @@ import { ClientReservationsScreen } from '@/screens/client/ClientReservationsScr
 import { ClientReservationFormScreen } from '@/screens/client/ClientReservationFormScreen';
 import { ClientChatScreen } from '@/screens/client/ClientChatScreen';
 import { ClientProfileScreen } from '@/screens/client/ClientProfileScreen';
+import { ClientMigrationModal } from '@/components/ClientMigrationModal';
+import { View } from 'react-native';
 
 const Tab = createBottomTabNavigator<ClientTabParamList>();
 const ReservationsStack = createNativeStackNavigator<ReservationsStackParamList>();
@@ -44,8 +51,26 @@ function ReservationsStackNavigator() {
 export function ClientTabsNavigator() {
   const unread = useClientUnreadCount();
   const { t } = useT();
+  const [conversation, setConversation] = useState<Conversation | null>(null);
+
+  useEffect(() => {
+    let unsub: (() => void) | undefined;
+    (async () => {
+      const id = await storage.getCustomerId();
+      if (!id) return;
+      unsub = subscribeConversation(id, setConversation);
+    })();
+    return () => unsub?.();
+  }, []);
+
+  useForegroundMessageAlerts({
+    conversation,
+    myRole: 'customer',
+    notificationTitle: t('chat.notif.fromSalon'),
+  });
 
   return (
+    <View style={{ flex: 1 }}>
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
@@ -53,6 +78,7 @@ export function ClientTabsNavigator() {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarLabelStyle: styles.tabLabel,
+        tabBarHideOnKeyboard: true,
       }}
     >
       <Tab.Screen
@@ -103,6 +129,8 @@ export function ClientTabsNavigator() {
         }}
       />
     </Tab.Navigator>
+    <ClientMigrationModal />
+    </View>
   );
 }
 

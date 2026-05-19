@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronLeft } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -13,11 +13,12 @@ import { getCustomer } from '@/services/customers';
 import { getSalon } from '@/services/salons';
 import {
   subscribeMessages,
+  subscribeConversation,
   sendMessage,
   markRead,
 } from '@/services/conversations';
 import { colors, spacing, typography } from '@/theme';
-import { Customer, Message } from '@/types';
+import { Conversation, Customer, Message } from '@/types';
 import { RootStackParamList } from '@/navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'ClientChat'>;
@@ -29,10 +30,12 @@ export function ClientChatScreen() {
   const [salonName, setSalonName] = useState<string>('Salon');
   const [salonLogo, setSalonLogo] = useState<string | undefined>();
   const [messages, setMessages] = useState<Message[]>([]);
+  const [conversation, setConversation] = useState<Conversation | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let unsub: (() => void) | undefined;
+    let unsubConvo: (() => void) | undefined;
     (async () => {
       const id = await storage.getCustomerId();
       if (!id) {
@@ -55,11 +58,23 @@ export function ClientChatScreen() {
       unsub = subscribeMessages(c.id, (list) => {
         setMessages(list);
         setLoading(false);
-        markRead(c.id, 'customer');
       });
+      unsubConvo = subscribeConversation(c.id, setConversation);
     })();
-    return () => unsub?.();
+    return () => {
+      unsub?.();
+      unsubConvo?.();
+    };
   }, []);
+
+  // Mark messages as read only when the user is actually viewing the chat tab.
+  useFocusEffect(
+    React.useCallback(() => {
+      if (customer && messages.length > 0) {
+        markRead(customer.id, 'customer');
+      }
+    }, [customer, messages.length]),
+  );
 
   const handleSend = async (msg: string) => {
     if (!customer) return;
@@ -102,6 +117,7 @@ export function ClientChatScreen() {
         myRole="customer"
         onSend={handleSend}
         emptyHint={t('client.chat.empty.hint')}
+        lastReadByOtherAt={conversation?.lastReadBySalonAt || 0}
       />
     </SafeAreaView>
   );

@@ -13,6 +13,7 @@ import {
 import { db } from './firebase';
 import { Conversation, Message, SenderRole, Customer } from '@/types';
 import { sendPush } from './push';
+import { getSalon } from './salons';
 
 /**
  * Conversation id = customer id (one conversation per customer with the salon).
@@ -54,13 +55,20 @@ export function subscribeConversation(
   cb: (c: Conversation | null) => void,
 ): () => void {
   const ref = doc(db, 'conversations', convoId(customerId));
-  return onSnapshot(ref, (snap) => {
-    if (!snap.exists()) {
+  return onSnapshot(
+    ref,
+    (snap) => {
+      if (!snap.exists()) {
+        cb(null);
+        return;
+      }
+      cb({ id: snap.id, ...(snap.data() as Omit<Conversation, 'id'>) });
+    },
+    (err) => {
+      console.warn('[conversations] subscribeConversation error:', err.message);
       cb(null);
-      return;
-    }
-    cb({ id: snap.id, ...(snap.data() as Omit<Conversation, 'id'>) });
-  });
+    },
+  );
 }
 
 export function subscribeSalonConversations(
@@ -71,14 +79,21 @@ export function subscribeSalonConversations(
     collection(db, 'conversations'),
     where('salonId', '==', salonId),
   );
-  return onSnapshot(q, (snap) => {
-    const list = snap.docs.map((d) => ({
-      id: d.id,
-      ...(d.data() as Omit<Conversation, 'id'>),
-    }));
-    list.sort((a, b) => b.lastMessageAt - a.lastMessageAt);
-    cb(list);
-  });
+  return onSnapshot(
+    q,
+    (snap) => {
+      const list = snap.docs.map((d) => ({
+        id: d.id,
+        ...(d.data() as Omit<Conversation, 'id'>),
+      }));
+      list.sort((a, b) => b.lastMessageAt - a.lastMessageAt);
+      cb(list);
+    },
+    (err) => {
+      console.warn('[conversations] subscribeSalonConversations error:', err.message);
+      cb([]);
+    },
+  );
 }
 
 export function subscribeMessages(
@@ -90,14 +105,21 @@ export function subscribeMessages(
     collection(db, 'messages'),
     where('conversationId', '==', convoId(customerId)),
   );
-  return onSnapshot(q, (snap) => {
-    const list = snap.docs.map((d) => ({
-      id: d.id,
-      ...(d.data() as Omit<Message, 'id'>),
-    }));
-    list.sort((a, b) => a.createdAt - b.createdAt);
-    cb(list.slice(-max));
-  });
+  return onSnapshot(
+    q,
+    (snap) => {
+      const list = snap.docs.map((d) => ({
+        id: d.id,
+        ...(d.data() as Omit<Message, 'id'>),
+      }));
+      list.sort((a, b) => a.createdAt - b.createdAt);
+      cb(list.slice(-max));
+    },
+    (err) => {
+      console.warn('[conversations] subscribeMessages error:', err.message);
+      cb([]);
+    },
+  );
 }
 
 interface SendMessageParams {
@@ -161,8 +183,9 @@ export async function sendMessage(params: SendMessageParams): Promise<void> {
     tx.set(messageRef, message);
   });
 
-  // Best-effort push to the customer if the salon sent the message
-  // and the customer has consented to push notifications.
+  const preview = trimmed.length > 100 ? trimmed.slice(0, 97) + '…' : trimmed;
+
+  // Salon → Client push
   if (
     senderRole === 'salon' &&
     customer.pushToken &&
@@ -172,9 +195,28 @@ export async function sendMessage(params: SendMessageParams): Promise<void> {
       await sendPush({
         token: customer.pushToken,
         title: 'Nouveau message du salon',
-        body: trimmed.length > 100 ? trimmed.slice(0, 97) + '…' : trimmed,
+        body: preview,
         data: { type: 'message', customerId: customer.id },
       });
+    } catch {
+      /* ignore push failures */
+    }
+  }
+
+  // Client → Salon kiosk push
+  if (senderRole === 'customer') {
+    try {
+      const salon = await getSalon(customer.salonId);
+      if (salon?.kioskPushToken) {
+        await sendPush({
+          token: salon.kioskPushToken,
+          title: customer.name
+            ? `Message de ${customer.name}`
+            : 'Nouveau message client',
+          body: preview,
+          data: { type: 'message', customerId: customer.id },
+        });
+      }
     } catch {
       /* ignore push failures */
     }
@@ -183,9 +225,14 @@ export async function sendMessage(params: SendMessageParams): Promise<void> {
 
 export async function markRead(customerId: string, role: SenderRole): Promise<void> {
   const ref = doc(db, 'conversations', convoId(customerId));
-  const field = role === 'customer' ? 'unreadByCustomer' : 'unreadBySalon';
+  const unreadField = role === 'customer' ? 'unreadByCustomer' : 'unreadBySalon';
+  const lastReadField =
+    role === 'customer' ? 'lastReadByCustomerAt' : 'lastReadBySalonAt';
   try {
-    await updateDoc(ref, { [field]: 0 });
+    await updateDoc(ref, {
+      [unreadField]: 0,
+      [lastReadField]: Date.now(),
+    });
   } catch {
     /* convo may not exist yet */
   }

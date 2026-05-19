@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -9,8 +9,9 @@ import {
   Platform,
   KeyboardAvoidingView,
   ActivityIndicator,
+  Keyboard,
 } from 'react-native';
-import { Send } from 'lucide-react-native';
+import { Send, Check, CheckCheck } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Message, SenderRole } from '@/types';
@@ -23,7 +24,22 @@ interface ChatViewProps {
   myRole: SenderRole;
   onSend: (text: string) => Promise<void>;
   emptyHint?: string;
+  /** Timestamp at which the other party last read the conversation. Used for read receipts. */
+  lastReadByOtherAt?: number;
 }
+
+type PendingStatus = 'sending' | 'failed';
+
+interface Pending {
+  tempId: string;
+  text: string;
+  createdAt: number;
+  status: PendingStatus;
+}
+
+type RenderItem =
+  | { kind: 'real'; message: Message }
+  | { kind: 'pending'; pending: Pending };
 
 export function ChatView({
   messages,
@@ -31,44 +47,126 @@ export function ChatView({
   myRole,
   onSend,
   emptyHint,
+  lastReadByOtherAt = 0,
 }: ChatViewProps) {
   const insets = useSafeAreaInsets();
   const { t } = useT();
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
-  const listRef = useRef<FlatList<Message>>(null);
+  const [pending, setPending] = useState<Pending[]>([]);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  const listRef = useRef<FlatList<RenderItem>>(null);
+
+  // Track keyboard state so we can collapse the bottom safe-area padding
+  // when it's not needed (it'd otherwise create a phantom gap above the keyboard).
+  useEffect(() => {
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvt, () => setKeyboardOpen(true));
+    const hideSub = Keyboard.addListener(hideEvt, () => setKeyboardOpen(false));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  // Once the real message arrives via Firestore subscription, drop the
+  // matching pending placeholder so we don't show a duplicate.
+  useEffect(() => {
+    setPending((current) =>
+      current.filter((p) => {
+        if (p.status === 'failed') return true; // keep failed for retry UI
+        const matched = messages.some(
+          (m) =>
+            m.senderRole === myRole &&
+            m.text === p.text &&
+            Math.abs(m.createdAt - p.createdAt) < 30_000,
+        );
+        return !matched;
+      }),
+    );
+  }, [messages, myRole]);
+
+  const items = useMemo<RenderItem[]>(() => {
+    const real = messages.map<RenderItem>((message) => ({ kind: 'real', message }));
+    const pend = pending.map<RenderItem>((p) => ({ kind: 'pending', pending: p }));
+    const merged = [...real, ...pend];
+    merged.sort((a, b) => itemTimestamp(a) - itemTimestamp(b));
+    return merged;
+  }, [messages, pending]);
 
   useEffect(() => {
-    if (messages.length > 0) {
+    if (items.length > 0) {
       setTimeout(() => {
         listRef.current?.scrollToEnd({ animated: true });
       }, 50);
     }
-  }, [messages.length]);
+  }, [items.length]);
+
+  const doSend = async (toSend: string, tempId: string) => {
+    try {
+      await onSend(toSend);
+      // Real message will arrive shortly; the useEffect above will drop pending.
+    } catch {
+      setPending((current) =>
+        current.map((p) =>
+          p.tempId === tempId ? { ...p, status: 'failed' } : p,
+        ),
+      );
+    }
+  };
 
   const handleSend = async () => {
-    const t = text.trim();
-    if (!t || sending) return;
+    const trimmed = text.trim();
+    if (!trimmed || sending) return;
+
+    const tempId = `pending-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const newPending: Pending = {
+      tempId,
+      text: trimmed,
+      createdAt: Date.now(),
+      status: 'sending',
+    };
+
+    setText('');
     setSending(true);
+    setPending((p) => [...p, newPending]);
+
     try {
-      await onSend(t);
-      setText('');
+      await doSend(trimmed, tempId);
     } finally {
       setSending(false);
     }
   };
 
+  const handleRetry = async (p: Pending) => {
+    // Reset to sending state and retry
+    setPending((current) =>
+      current.map((x) =>
+        x.tempId === p.tempId ? { ...x, status: 'sending', createdAt: Date.now() } : x,
+      ),
+    );
+    setSending(true);
+    try {
+      await doSend(p.text, p.tempId);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const hasContent = items.length > 0;
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
     >
       {loading ? (
         <View style={styles.empty}>
           <ActivityIndicator color={colors.primary} />
         </View>
-      ) : messages.length === 0 ? (
+      ) : !hasContent ? (
         <View style={styles.empty}>
           <Text style={styles.emptyTitle}>{t('client.chat.empty.title')}</Text>
           {emptyHint && <Text style={styles.emptyHint}>{emptyHint}</Text>}
@@ -76,17 +174,37 @@ export function ChatView({
       ) : (
         <FlatList
           ref={listRef}
-          data={messages}
-          keyExtractor={(m) => m.id}
+          data={items}
+          keyExtractor={(it) =>
+            it.kind === 'real' ? it.message.id : it.pending.tempId
+          }
           renderItem={({ item, index }) => {
-            const prev = index > 0 ? messages[index - 1] : undefined;
-            const showDay =
-              !prev ||
-              !sameDay(prev.createdAt, item.createdAt);
+            const prev = index > 0 ? items[index - 1] : undefined;
+            const currentTs = itemTimestamp(item);
+            const prevTs = prev ? itemTimestamp(prev) : undefined;
+            const showDay = !prevTs || !sameDay(prevTs, currentTs);
+
+            if (item.kind === 'pending') {
+              return (
+                <View>
+                  {showDay && <DayDivider ts={currentTs} />}
+                  <PendingBubble
+                    pending={item.pending}
+                    onRetry={() => handleRetry(item.pending)}
+                    sendingLabel={t('chat.status.sending')}
+                    failedLabel={t('chat.status.failed')}
+                  />
+                </View>
+              );
+            }
             return (
               <View>
-                {showDay && <DayDivider ts={item.createdAt} />}
-                <Bubble message={item} mine={item.senderRole === myRole} />
+                {showDay && <DayDivider ts={currentTs} />}
+                <Bubble
+                  message={item.message}
+                  mine={item.message.senderRole === myRole}
+                  lastReadByOtherAt={lastReadByOtherAt}
+                />
               </View>
             );
           }}
@@ -101,7 +219,10 @@ export function ChatView({
       <View
         style={[
           styles.inputBar,
-          { paddingBottom: spacing.md + Math.max(insets.bottom, 0) },
+          {
+            paddingBottom:
+              spacing.sm + (keyboardOpen ? 0 : Math.max(insets.bottom, 0)),
+          },
         ]}
       >
         <TextInput
@@ -136,11 +257,28 @@ export function ChatView({
   );
 }
 
-function Bubble({ message, mine }: { message: Message; mine: boolean }) {
+function itemTimestamp(item: RenderItem): number {
+  return item.kind === 'real' ? item.message.createdAt : item.pending.createdAt;
+}
+
+function Bubble({
+  message,
+  mine,
+  lastReadByOtherAt,
+}: {
+  message: Message;
+  mine: boolean;
+  lastReadByOtherAt: number;
+}) {
   const time = new Date(message.createdAt).toLocaleTimeString(
     localeToBcp47(getCurrentLocale()),
     { hour: '2-digit', minute: '2-digit' },
   );
+
+  // Read receipt state (only for our own messages)
+  const read = mine && lastReadByOtherAt >= message.createdAt;
+  const delivered = mine && !read && lastReadByOtherAt > 0;
+
   return (
     <View style={[styles.bubbleRow, mine ? styles.rowMine : styles.rowTheirs]}>
       <View
@@ -150,9 +288,77 @@ function Bubble({ message, mine }: { message: Message; mine: boolean }) {
         ]}
       >
         <Text style={[styles.text, mine && styles.textMine]}>{message.text}</Text>
-        <Text style={[styles.time, mine && styles.timeMine]}>{time}</Text>
+        <View style={styles.metaRow}>
+          <Text style={[styles.time, mine && styles.timeMine]}>{time}</Text>
+          {mine && (
+            <View style={styles.receipt}>
+              {read ? (
+                <CheckCheck
+                  color={READ_COLOR}
+                  size={14}
+                  strokeWidth={2.4}
+                />
+              ) : delivered ? (
+                <CheckCheck
+                  color="rgba(0,0,0,0.55)"
+                  size={14}
+                  strokeWidth={2.4}
+                />
+              ) : (
+                <Check
+                  color="rgba(0,0,0,0.55)"
+                  size={14}
+                  strokeWidth={2.4}
+                />
+              )}
+            </View>
+          )}
+        </View>
       </View>
     </View>
+  );
+}
+
+const READ_COLOR = '#4FC3F7';
+
+function PendingBubble({
+  pending,
+  onRetry,
+  sendingLabel,
+  failedLabel,
+}: {
+  pending: Pending;
+  onRetry: () => void;
+  sendingLabel: string;
+  failedLabel: string;
+}) {
+  const failed = pending.status === 'failed';
+  return (
+    <Pressable
+      onPress={failed ? onRetry : undefined}
+      style={[styles.bubbleRow, styles.rowMine]}
+    >
+      <View>
+        <View
+          style={[
+            styles.bubble,
+            styles.bubbleMine,
+            styles.bubblePending,
+            failed && styles.bubbleFailed,
+          ]}
+        >
+          <Text style={[styles.text, styles.textMine]}>{pending.text}</Text>
+        </View>
+        <Text
+          style={[
+            styles.pendingHint,
+            failed && styles.pendingHintFailed,
+          ]}
+        >
+          {failed ? failedLabel : sendingLabel}
+        </Text>
+      </View>
+    </Pressable>
   );
 }
 
@@ -238,6 +444,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+  bubblePending: {
+    opacity: 0.7,
+  },
+  bubbleFailed: {
+    backgroundColor: colors.danger,
+    opacity: 1,
+  },
   text: {
     ...typography.body,
     color: colors.text,
@@ -245,15 +458,38 @@ const styles = StyleSheet.create({
   textMine: {
     color: colors.black,
   },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 4,
+    marginTop: 2,
+  },
   time: {
     ...typography.caption,
     color: colors.textDim,
-    marginTop: 2,
     fontSize: 10,
-    textAlign: 'right',
   },
   timeMine: {
     color: 'rgba(0,0,0,0.55)',
+  },
+  receipt: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  pendingHint: {
+    ...typography.caption,
+    color: colors.textDim,
+    fontSize: 10,
+    textAlign: 'right',
+    marginTop: 2,
+    marginRight: 4,
+    fontStyle: 'italic',
+  },
+  pendingHintFailed: {
+    color: colors.danger,
+    fontStyle: 'normal',
+    fontWeight: '600',
   },
   dayWrap: {
     alignItems: 'center',

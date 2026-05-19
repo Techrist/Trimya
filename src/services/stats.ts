@@ -72,22 +72,34 @@ export function subscribeSalonStats(
   };
 
   const cutsQuery = query(collection(db, 'cuts'), where('salonId', '==', salonId));
-  const unsubCuts = onSnapshot(cutsQuery, (snap) => {
-    cuts = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Cut, 'id'>) }));
-    compute();
-  });
+  const unsubCuts = onSnapshot(
+    cutsQuery,
+    (snap) => {
+      cuts = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Cut, 'id'>) }));
+      compute();
+    },
+    (err) => {
+      console.warn('[stats] cuts listener error:', err.message);
+    },
+  );
 
   const customersQuery = query(
     collection(db, 'customers'),
     where('salonId', '==', salonId),
   );
-  const unsubCustomers = onSnapshot(customersQuery, (snap) => {
-    customers = snap.docs.map((d) => ({
-      id: d.id,
-      ...(d.data() as Omit<Customer, 'id'>),
-    }));
-    compute();
-  });
+  const unsubCustomers = onSnapshot(
+    customersQuery,
+    (snap) => {
+      customers = snap.docs.map((d) => ({
+        id: d.id,
+        ...(d.data() as Omit<Customer, 'id'>),
+      }));
+      compute();
+    },
+    (err) => {
+      console.warn('[stats] customers listener error:', err.message);
+    },
+  );
 
   return () => {
     unsubCuts();

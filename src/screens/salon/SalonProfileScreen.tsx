@@ -27,10 +27,16 @@ import { Card } from '@/components/Card';
 import { Logo } from '@/components/Logo';
 import { Avatar } from '@/components/Avatar';
 import { LanguagePicker } from '@/components/LanguagePicker';
+import { SalonPlanCard } from '@/components/SalonPlanCard';
+import { OpeningHoursEditor } from '@/components/OpeningHoursEditor';
+import { SubscriptionPriceEditor } from '@/components/SubscriptionPriceEditor';
+import { LockedFeatureCard } from '@/components/LockedFeatureCard';
+import { useSalonPlan } from '@/hooks/useSalonPlan';
 import { useT } from '@/i18n';
 import { useApp } from '@/contexts/AppContext';
-import { getSalon, setSalonLogo } from '@/services/salons';
+import { getSalon, setSalonLogo, subscribeSalon } from '@/services/salons';
 import { pickPhotoSquare } from '@/services/photos';
+import { registerSalonKioskPushToken } from '@/services/push';
 import { subscribeSalonStats } from '@/services/stats';
 import { signOut } from '@/services/auth';
 import { storage } from '@/services/storage';
@@ -41,22 +47,26 @@ export function SalonProfileScreen() {
   const nav = useNavigation();
   const { salonId, clearMode } = useApp();
   const { t } = useT();
+  const { limits } = useSalonPlan(salonId);
   const [salon, setSalon] = useState<Salon | null>(null);
   const [stats, setStats] = useState<SalonStats | null>(null);
   const [pushEnabled, setPushEnabled] = useState(true);
 
   useEffect(() => {
     if (!salonId) return;
-    (async () => {
-      const s = await getSalon(salonId);
-      setSalon(s);
-    })();
-    const unsub = subscribeSalonStats(salonId, setStats);
+    // Souscription temps réel : reflète immédiatement les modifs d'horaires,
+    // logo, plan, etc.
+    const unsubSalon = subscribeSalon(salonId, setSalon);
+    registerSalonKioskPushToken(salonId);
+    const unsubStats = subscribeSalonStats(salonId, setStats);
     (async () => {
       const settings = await Notifications.getPermissionsAsync();
       setPushEnabled(settings.granted);
     })();
-    return unsub;
+    return () => {
+      unsubSalon();
+      unsubStats();
+    };
   }, [salonId]);
 
   const handleTogglePush = async (enabled: boolean) => {
@@ -169,6 +179,41 @@ export function SalonProfileScreen() {
           </View>
         </View>
       </Card>
+
+      <Text style={styles.sectionTitle}>{t('plan.profile.title')}</Text>
+      <SalonPlanCard salonId={salonId} />
+
+      <Text style={styles.sectionTitle}>{t('hours.sectionTitle')}</Text>
+      {salonId ? (
+        limits.openingHours ? (
+          <OpeningHoursEditor
+            salonId={salonId}
+            openingHours={salon?.openingHours}
+            closures={salon?.closures}
+          />
+        ) : (
+          <LockedFeatureCard
+            requiredPlan="standard"
+            body={t('hours.lockedBody')}
+          />
+        )
+      ) : null}
+
+      <Text style={styles.sectionTitle}>{t('subscription.sectionTitle')}</Text>
+      {salonId ? (
+        limits.subscriptions ? (
+          <SubscriptionPriceEditor
+            salonId={salonId}
+            currentPrice={salon?.subscriptionPrice}
+            currency={salon?.currency}
+          />
+        ) : (
+          <LockedFeatureCard
+            requiredPlan="pro"
+            body={t('subscription.lockedBody')}
+          />
+        )
+      ) : null}
 
       <Text style={styles.sectionTitle}>{t('salon.profile.overview')}</Text>
       {stats ? (

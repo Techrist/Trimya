@@ -7,6 +7,7 @@ import { User, Scissors, ArrowRight, LucideIcon } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { useT } from '@/i18n';
 import { Logo } from '@/components/Logo';
+import { LanguageSwitch } from '@/components/LanguageSwitch';
 import { useApp } from '@/contexts/AppContext';
 import { colors, radius, spacing, typography } from '@/theme';
 import { RootStackParamList } from '@/navigation/types';
@@ -18,14 +19,19 @@ export function RoleSelectionScreen() {
   const { setMode } = useApp();
   const { t } = useT();
 
-  const choose = async (role: 'client' | 'salon') => {
+  const choose = async (role: 'client' | 'salon' | 'owner') => {
     await setMode(role);
     if (role === 'client') nav.replace('PhoneSignup');
-    else nav.replace('SalonActivation');
+    else if (role === 'salon') nav.replace('SalonActivation');
+    else nav.replace('OwnerSignIn');
   };
 
   return (
     <Screen padded>
+      <View style={styles.langTopBar}>
+        <LanguageSwitch />
+      </View>
+
       <View style={styles.header}>
         <Logo size={64} />
         <Text style={styles.title}>{t('role.title')}</Text>
@@ -49,6 +55,24 @@ export function RoleSelectionScreen() {
       </View>
 
       <Text style={styles.warn}>{t('role.warning')}</Text>
+
+      {/* Spacer flexible pour repousser le lien propriétaire tout en bas */}
+      <View style={{ flex: 1 }} />
+
+      {/* Accès discret pour les propriétaires (peu d'utilisateurs concernés
+          comparé aux clients / salons). Petit lien texte centré, gris muted. */}
+      <Pressable
+        onPress={() => choose('owner')}
+        hitSlop={12}
+        style={({ pressed }) => [
+          styles.ownerLink,
+          pressed && { opacity: 0.6 },
+        ]}
+      >
+        <Text style={styles.ownerLinkText}>
+          {t('role.owner.discreetLink')}
+        </Text>
+      </Pressable>
     </Screen>
   );
 }
@@ -101,6 +125,11 @@ function RoleCard({
 }
 
 const styles = StyleSheet.create({
+  langTopBar: {
+    width: '100%',
+    alignItems: 'flex-end',
+    marginBottom: spacing.md,
+  },
   header: {
     alignItems: 'flex-start',
     marginBottom: spacing.xl,
@@ -158,5 +187,16 @@ const styles = StyleSheet.create({
     color: colors.textDim,
     textAlign: 'center',
     marginTop: spacing.xl,
+  },
+  ownerLink: {
+    alignSelf: 'center',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+  },
+  ownerLinkText: {
+    ...typography.caption,
+    color: colors.textDim,
+    textDecorationLine: 'underline',
+    letterSpacing: 0.3,
   },
 });

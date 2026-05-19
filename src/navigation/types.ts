@@ -14,6 +14,10 @@ export type RootStackParamList = {
   // Salon flow
   SalonActivation: undefined;
   SalonTabs: undefined;
+
+  // Owner flow (Plan Entreprise)
+  OwnerSignIn: undefined;
+  OwnerTabs: undefined;
 };
 
 // Client bottom tabs
@@ -36,6 +40,7 @@ export type SalonTabParamList = {
 export type ScannerStackParamList = {
   Scanner: undefined;
   AddCut: { customerId: string };
+  Queue: undefined;
 };
 
 export type CustomersStackParamList = {
@@ -65,4 +70,16 @@ export type ProfileStackParamList = {
   Barbers: undefined;
   BarberForm: { barberId?: string };
   BarberStats: undefined;
+};
+
+// Owner bottom tabs
+export type OwnerTabParamList = {
+  OwnerHomeTab: undefined;
+  OwnerSalonsTab: undefined;
+  OwnerProfileTab: undefined;
+};
+
+export type OwnerSalonsStackParamList = {
+  OwnerSalonsList: undefined;
+  OwnerSalonDetail: { salonId: string };
 };

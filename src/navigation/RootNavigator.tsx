@@ -16,11 +16,13 @@ import { ClientChatScreen } from '@/screens/client/ClientChatScreen';
 import { ClientTabsNavigator } from './ClientTabsNavigator';
 import { SalonActivationScreen } from '@/screens/salon/SalonActivationScreen';
 import { SalonTabsNavigator } from './SalonTabsNavigator';
+import { OwnerSignInScreen } from '@/screens/owner/OwnerSignInScreen';
+import { OwnerTabsNavigator } from './OwnerTabsNavigator';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export function RootNavigator() {
-  const { ready, mode, onboarded, user, salonId } = useApp();
+  const { ready, mode, onboarded, user, salonId, ownerId } = useApp();
 
   if (!ready) {
     return (
@@ -45,9 +47,13 @@ export function RootNavigator() {
         ? salonId
           ? 'SalonTabs'
           : 'SalonActivation'
-        : user
-          ? 'ClientTabs'
-          : 'PhoneSignup';
+        : mode === 'owner'
+          ? user && ownerId
+            ? 'OwnerTabs'
+            : 'OwnerSignIn'
+          : user
+            ? 'ClientTabs'
+            : 'PhoneSignup';
 
   return (
     <Stack.Navigator
@@ -71,6 +77,9 @@ export function RootNavigator() {
 
       <Stack.Screen name="SalonActivation" component={SalonActivationScreen} />
       <Stack.Screen name="SalonTabs" component={SalonTabsNavigator} />
+
+      <Stack.Screen name="OwnerSignIn" component={OwnerSignInScreen} />
+      <Stack.Screen name="OwnerTabs" component={OwnerTabsNavigator} />
     </Stack.Navigator>
   );
 }

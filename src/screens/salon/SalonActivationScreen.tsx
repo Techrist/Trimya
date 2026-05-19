@@ -6,8 +6,9 @@ import { Screen } from '@/components/Screen';
 import { Button } from '@/components/Button';
 import { TextField } from '@/components/TextField';
 import { Logo } from '@/components/Logo';
-import { activateSalonByCode } from '@/services/salons';
-import { signInAsSalonKiosk } from '@/services/auth';
+import { activateSalonByCode, registerSalonKioskUid } from '@/services/salons';
+import { signInAsSalonKiosk, currentUser } from '@/services/auth';
+import { registerSalonKioskPushToken } from '@/services/push';
 import { useApp } from '@/contexts/AppContext';
 import { useT } from '@/i18n';
 import { colors, spacing, typography } from '@/theme';
@@ -30,9 +31,13 @@ export function SalonActivationScreen() {
     }
     setLoading(true);
     try {
-      await signInAsSalonKiosk();
+      const user = await signInAsSalonKiosk();
       const salon = await activateSalonByCode(trimmed);
+      // Link this device's auth UID to the salon so server-side rules can
+      // verify "is this writer actually a kiosk of this salon?".
+      await registerSalonKioskUid(salon.id, user.uid);
       await setSalonId(salon.id);
+      registerSalonKioskPushToken(salon.id);
       nav.reset({ index: 0, routes: [{ name: 'SalonTabs' }] });
     } catch (e: any) {
       Alert.alert(t('salon.activation.failed'), e.message || t('salon.activation.invalidCode'));

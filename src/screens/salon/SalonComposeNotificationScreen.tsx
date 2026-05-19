@@ -22,8 +22,12 @@ import {
 } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { Button } from '@/components/Button';
+import { LockedFeature } from '@/components/LockedFeature';
 import { getCustomer } from '@/services/customers';
-import { sendPush } from '@/services/push';
+import { sendMessage } from '@/services/conversations';
+import { currentUser } from '@/services/auth';
+import { useApp } from '@/contexts/AppContext';
+import { useSalonPlan } from '@/hooks/useSalonPlan';
 import { useT } from '@/i18n';
 import { colors, radius, spacing, typography } from '@/theme';
 import { Customer } from '@/types';
@@ -76,6 +80,8 @@ export function SalonComposeNotificationScreen() {
   const route = useRoute<Rt>();
   const { customerId } = route.params;
   const { t } = useT();
+  const { salonId } = useApp();
+  const { limits, loading: planLoading } = useSalonPlan(salonId);
 
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [activePreset, setActivePreset] = useState<string>('promo');
@@ -101,42 +107,43 @@ export function SalonComposeNotificationScreen() {
     }
   };
 
-  const pushAvailable =
-    !!customer?.pushToken && customer.pushEnabled !== false;
-
   const handleSend = async () => {
     if (!customer) return;
-    const fallback = t('salon.compose.fallbackName');
-    const name = customer.name || fallback;
-    if (!pushAvailable) {
-      Alert.alert(
-        t('salon.compose.notAvailable'),
-        customer.pushEnabled === false
-          ? t('salon.compose.disabledByCustomer', { name })
-          : t('salon.compose.notRegistered', { name }),
-      );
-      return;
-    }
-    if (!title.trim() || !body.trim()) {
+    const trimmedTitle = title.trim();
+    const trimmedBody = body.trim();
+    if (!trimmedBody) {
       Alert.alert(t('salon.compose.incomplete'), t('salon.compose.incompleteHint'));
       return;
     }
+    const me = currentUser();
+    if (!me) return;
+
+    // Compose final message body: title on first line (if set), then body.
+    const messageText = trimmedTitle
+      ? `${trimmedTitle}\n${trimmedBody}`
+      : trimmedBody;
+
     setSending(true);
     try {
-      await sendPush({
-        token: customer.pushToken!,
-        title: title.trim(),
-        body: body.trim(),
+      await sendMessage({
+        customer,
+        text: messageText,
+        senderRole: 'salon',
+        senderId: me.uid,
       });
-      Alert.alert(t('salon.compose.sent'), t('salon.compose.sentText', { name }), [
-        { text: 'OK', onPress: () => nav.goBack() },
-      ]);
+      // Go straight to the chat so the salon sees the message in context.
+      nav.replace('Chat', { customerId: customer.id });
     } catch (e: any) {
       Alert.alert(t('common.error'), e.message || t('salon.compose.errorSend'));
     } finally {
       setSending(false);
     }
   };
+
+  // Garde-fou plan : envoyer une notif passe par la messagerie côté backend.
+  if (!planLoading && !limits.messaging) {
+    return <LockedFeature requiredPlan="standard" />;
+  }
 
   return (
     <Screen padded={false}>
@@ -213,22 +220,12 @@ export function SalonComposeNotificationScreen() {
           />
           <Text style={styles.charCount}>{body.length}/300</Text>
 
-          {customer && !pushAvailable && (
-            <View style={styles.warning}>
-              <Text style={styles.warningText}>
-                {customer.pushEnabled === false
-                  ? t('salon.compose.warningDisabled')
-                  : t('salon.compose.warningNotRegistered')}
-              </Text>
-            </View>
-          )}
-
           <View style={styles.submitWrap}>
             <Button
               label={t('salon.compose.cta')}
               onPress={handleSend}
               loading={sending}
-              disabled={!pushAvailable || !title.trim() || !body.trim()}
+              disabled={!body.trim()}
             />
           </View>
         </ScrollView>

@@ -13,15 +13,21 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Check, Gift, AlertTriangle } from 'lucide-react-native';
+import { Check, Gift, AlertTriangle, ArrowRightLeft } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { ProgressIndicator } from '@/components/ProgressIndicator';
 import { BarberAvatar } from '@/components/BarberAvatar';
+import { Avatar } from '@/components/Avatar';
 import { getCustomer } from '@/services/customers';
 import { addCut } from '@/services/cuts';
 import { subscribeBarbers } from '@/services/barbers';
+import {
+  requestMigration,
+  clearMigrationRequest,
+} from '@/services/migration';
+import { subscribeCustomer } from '@/services/customers';
 import { useApp } from '@/contexts/AppContext';
 import { formatPrice, parsePriceInput } from '@/utils/currency';
 import { useT } from '@/i18n';
@@ -45,25 +51,86 @@ export function SalonAddCutScreen() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<ScanResult | null>(null);
+  const [needsMigration, setNeedsMigration] = useState(false);
+  const [migrating, setMigrating] = useState(false);
 
   const [barbers, setBarbers] = useState<Barber[]>([]);
   const [selectedBarberId, setSelectedBarberId] = useState<string | null>(null);
   const [priceInput, setPriceInput] = useState<string>('');
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const c = await getCustomer(customerId);
-        if (!c) throw new Error('Client introuvable.');
-        if (salonId && c.salonId !== salonId) {
-          throw new Error('Ce client n\'est pas inscrit à ce salon.');
-        }
-        setCustomer(c);
-      } catch (e: any) {
-        setError(e.message || 'Erreur de chargement.');
+  const reloadCustomer = async () => {
+    try {
+      const c = await getCustomer(customerId);
+      if (!c) {
+        setError('Client introuvable.');
+        return;
       }
-    })();
+      setCustomer(c);
+      if (salonId && c.salonId !== salonId) {
+        setNeedsMigration(true);
+      } else {
+        setNeedsMigration(false);
+      }
+    } catch (e: any) {
+      setError(e.message || 'Erreur de chargement.');
+    }
+  };
+
+  useEffect(() => {
+    reloadCustomer();
   }, [customerId, salonId]);
+
+  const handleRequestMigration = async () => {
+    if (!customer || !salonId) return;
+    setMigrating(true);
+    try {
+      await requestMigration({ customerId: customer.id, targetSalonId: salonId });
+      // Subscribe to customer changes; the modal stays "pending" until the
+      // client either accepts (salonId changes) or refuses (pendingMigrationTo
+      // becomes null without a salonId change).
+    } catch (e: any) {
+      Alert.alert(
+        t('salon.migration.errorTitle'),
+        e.message || t('common.error'),
+      );
+      setMigrating(false);
+    }
+  };
+
+  const handleCancelRequest = async () => {
+    if (!customer) return;
+    try {
+      await clearMigrationRequest(customer.id);
+    } catch {
+      /* ignore */
+    }
+    setMigrating(false);
+    nav.replace('Scanner');
+  };
+
+  // While a request is pending, subscribe to the customer doc so we react
+  // to the client's acceptance or refusal in real time.
+  useEffect(() => {
+    if (!migrating || !customer || !salonId) return;
+    const unsub = subscribeCustomer(customer.id, (updated) => {
+      if (!updated) return;
+      if (updated.salonId === salonId) {
+        // ✅ Migration accepted by the client — refresh and proceed.
+        setMigrating(false);
+        setNeedsMigration(false);
+        setCustomer(updated);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else if (!updated.pendingMigrationTo) {
+        // ❌ Client refused — request cleared without salon change.
+        setMigrating(false);
+        Alert.alert(
+          t('salon.migration.refusedTitle'),
+          t('salon.migration.refusedText'),
+        );
+      }
+    });
+    return unsub;
+  }, [migrating, customer, salonId, t]);
 
   useEffect(() => {
     if (!salonId) return;
@@ -155,6 +222,70 @@ export function SalonAddCutScreen() {
     );
   }
 
+  // Customer belongs to another salon — show migration prompt before normal flow.
+  if (needsMigration) {
+    return (
+      <Screen padded scroll>
+        <View style={styles.migrationIconWrap}>
+          <ArrowRightLeft color={colors.primary} size={48} strokeWidth={2} />
+        </View>
+        <Text style={styles.migrationTitle}>{t('salon.migration.title')}</Text>
+        <Text style={styles.migrationSub}>{t('salon.migration.subtitle')}</Text>
+
+        <Card style={styles.migrationCustomerCard} elevated>
+          <Text style={styles.migrationCustomerName}>
+            {customer.name || t('salon.cut.fallbackName')}
+          </Text>
+          <Text style={styles.migrationCustomerPhone}>{customer.phone}</Text>
+        </Card>
+
+        <Text style={styles.migrationDetail}>{t('salon.migration.detail')}</Text>
+
+        <Card style={styles.migrationWarn}>
+          <Text style={styles.migrationWarnText}>
+            {t('salon.migration.warning')}
+          </Text>
+          <Text style={styles.migrationKept}>{t('salon.migration.kept')}</Text>
+        </Card>
+
+        {migrating ? (
+          <View style={styles.waitingBox}>
+            <Text style={styles.waitingTitle}>
+              {t('salon.migration.waitingTitle')}
+            </Text>
+            <Text style={styles.waitingText}>
+              {t('salon.migration.waitingText', {
+                name: customer.name || t('salon.cut.fallbackName'),
+              })}
+            </Text>
+          </View>
+        ) : null}
+
+        <View style={{ gap: spacing.md, marginTop: spacing.lg }}>
+          {migrating ? (
+            <Button
+              label={t('salon.migration.cancelRequest')}
+              onPress={handleCancelRequest}
+              variant="secondary"
+            />
+          ) : (
+            <>
+              <Button
+                label={t('salon.migration.requestLabel')}
+                onPress={handleRequestMigration}
+              />
+              <Button
+                label={t('salon.migration.cancelLabel')}
+                onPress={() => nav.replace('Scanner')}
+                variant="ghost"
+              />
+            </>
+          )}
+        </View>
+      </Screen>
+    );
+  }
+
   if (result) {
     return (
       <Screen padded centered>
@@ -208,10 +339,15 @@ export function SalonAddCutScreen() {
   }
 
   return (
-    <Screen padded scroll>
+    <Screen padded scroll keyboardAvoiding>
       <Text style={styles.label}>{t('salon.cut.identified')}</Text>
-      <Text style={styles.name}>{customer.name || t('salon.cut.fallbackName')}</Text>
-      <Text style={styles.phone}>{customer.phone}</Text>
+      <View style={styles.heroRow}>
+        <Avatar name={customer.name} photo={customer.photo} size={64} />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.name}>{customer.name || t('salon.cut.fallbackName')}</Text>
+          <Text style={styles.phone}>{customer.phone}</Text>
+        </View>
+      </View>
 
       <Card style={styles.progressCard} elevated>
         <ProgressIndicator count={customer.currentCount} />
@@ -320,15 +456,21 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1.5,
   },
+  heroRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginTop: spacing.sm,
+    marginBottom: spacing.lg,
+  },
   name: {
     ...typography.h1,
     color: colors.text,
-    marginTop: spacing.xs,
   },
   phone: {
     ...typography.body,
     color: colors.textMuted,
-    marginBottom: spacing.lg,
+    marginTop: 2,
   },
   progressCard: {
     marginBottom: spacing.lg,
@@ -492,6 +634,80 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.md,
+  },
+  migrationIconWrap: {
+    alignSelf: 'center',
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: 'rgba(255, 87, 34, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: spacing.lg,
+  },
+  migrationTitle: {
+    ...typography.h1,
+    color: colors.text,
+    textAlign: 'center',
+  },
+  migrationSub: {
+    ...typography.body,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: spacing.xs,
+    marginBottom: spacing.lg,
+  },
+  migrationCustomerCard: {
+    alignItems: 'center',
+    paddingVertical: spacing.lg,
+  },
+  migrationCustomerName: {
+    ...typography.h2,
+    color: colors.text,
+  },
+  migrationCustomerPhone: {
+    ...typography.body,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  migrationDetail: {
+    ...typography.body,
+    color: colors.text,
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+  },
+  migrationWarn: {
+    backgroundColor: 'rgba(255, 235, 59, 0.08)',
+    borderColor: colors.accent,
+  },
+  migrationWarnText: {
+    ...typography.body,
+    color: colors.text,
+  },
+  migrationKept: {
+    ...typography.caption,
+    color: colors.textMuted,
+    marginTop: spacing.sm,
+  },
+  waitingBox: {
+    marginTop: spacing.lg,
+    padding: spacing.lg,
+    backgroundColor: 'rgba(255, 87, 34, 0.08)',
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    alignItems: 'center',
+  },
+  waitingTitle: {
+    ...typography.h3,
+    color: colors.primary,
+    marginBottom: spacing.xs,
+  },
+  waitingText: {
+    ...typography.body,
+    color: colors.text,
+    textAlign: 'center',
   },
   title: {
     ...typography.h2,

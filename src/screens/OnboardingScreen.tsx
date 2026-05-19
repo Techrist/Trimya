@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, ImageBackground } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -12,6 +12,8 @@ import { Logo } from '@/components/Logo';
 import { useApp } from '@/contexts/AppContext';
 import { colors, spacing, typography } from '@/theme';
 import { RootStackParamList } from '@/navigation/types';
+
+const BG_PATTERN = require('../../assets/bg-pattern.png');
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Onboarding'>;
 
@@ -26,41 +28,48 @@ export function OnboardingScreen() {
   };
 
   return (
-    <Screen padded>
-      <View style={styles.langTopBar}>
-        <LanguageSwitch />
-      </View>
-
-      <View style={styles.content}>
-        <View style={styles.top}>
-          <Logo size={140} />
-          <Text style={styles.brand}>{t('onboarding.brand')}</Text>
-          <Text style={styles.tagline}>{t('onboarding.tagline')}</Text>
+    <ImageBackground
+      source={BG_PATTERN}
+      style={styles.bg}
+      imageStyle={styles.bgImage}
+      resizeMode="cover"
+    >
+      <Screen padded transparent>
+        <View style={styles.langTopBar}>
+          <LanguageSwitch />
         </View>
 
-        <View style={styles.features}>
-          <Feature
-            Icon={Scissors}
-            title={t('onboarding.feature.cuts.title')}
-            subtitle={t('onboarding.feature.cuts.subtitle')}
-          />
-          <Feature
-            Icon={Zap}
-            title={t('onboarding.feature.fast.title')}
-            subtitle={t('onboarding.feature.fast.subtitle')}
-          />
-          <Feature
-            Icon={Bell}
-            title={t('onboarding.feature.notif.title')}
-            subtitle={t('onboarding.feature.notif.subtitle')}
-          />
-        </View>
+        <View style={styles.content}>
+          <View style={styles.top}>
+            <Logo size={140} />
+            <Text style={styles.brand}>{t('onboarding.brand')}</Text>
+            <Text style={styles.tagline}>{t('onboarding.tagline')}</Text>
+          </View>
 
-        <View style={styles.cta}>
-          <Button label={t('onboarding.cta')} onPress={handleStart} />
+          <View style={styles.features}>
+            <Feature
+              Icon={Scissors}
+              title={t('onboarding.feature.cuts.title')}
+              subtitle={t('onboarding.feature.cuts.subtitle')}
+            />
+            <Feature
+              Icon={Zap}
+              title={t('onboarding.feature.fast.title')}
+              subtitle={t('onboarding.feature.fast.subtitle')}
+            />
+            <Feature
+              Icon={Bell}
+              title={t('onboarding.feature.notif.title')}
+              subtitle={t('onboarding.feature.notif.subtitle')}
+            />
+          </View>
+
+          <View style={styles.cta}>
+            <Button label={t('onboarding.cta')} onPress={handleStart} />
+          </View>
         </View>
-      </View>
-    </Screen>
+      </Screen>
+    </ImageBackground>
   );
 }
 
@@ -92,6 +101,15 @@ function Feature({
 }
 
 const styles = StyleSheet.create({
+  bg: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
+  bgImage: {
+    // Légère opacité pour que le pattern reste discret et ne perturbe
+    // pas la lisibilité du logo et du texte au premier plan.
+    opacity: 0.55,
+  },
   langTopBar: {
     width: '100%',
     alignItems: 'flex-end',

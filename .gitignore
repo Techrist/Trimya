@@ -10,3 +10,7 @@ ios/
 android/
 *.orig.*
 .vscode/
+.claude/
+.idea/
+firebase-service-account*.json
+*-service-account.json

@@ -1,19 +1,21 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert, Platform } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
+import { Footprints } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Screen } from '@/components/Screen';
 import { Button } from '@/components/Button';
 import { Logo } from '@/components/Logo';
-import { signOut } from '@/services/auth';
-import { storage } from '@/services/storage';
 import { useApp } from '@/contexts/AppContext';
+import { useSalonQueueCount } from '@/hooks/useSalonQueueCount';
+import { useSalonPlan } from '@/hooks/useSalonPlan';
 import { useT } from '@/i18n';
+import { parseQr, validateQrFreshness } from '@/lib/qr';
 import { colors, radius, spacing, typography } from '@/theme';
 import { ScannerStackParamList } from '@/navigation/types';
-import { CommonActions } from '@react-navigation/native';
 
 type Nav = NativeStackNavigationProp<ScannerStackParamList, 'Scanner'>;
 
@@ -23,7 +25,9 @@ export function SalonScannerScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const lastScanRef = useRef<{ id: string; at: number } | null>(null);
-  const { clearMode } = useApp();
+  const { salonId } = useApp();
+  const { limits } = useSalonPlan(salonId);
+  const queueCount = useSalonQueueCount(limits.queueSignal ? salonId : null);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -40,55 +44,48 @@ export function SalonScannerScreen() {
 
   const handleBarcode = (result: BarcodeScanningResult) => {
     if (scanned) return;
-    try {
-      const data = JSON.parse(result.data);
-      if (data?.t !== 'trimya' || !data?.id) {
-        throw new Error('QR non reconnu');
-      }
-      const now = Date.now();
-      if (
-        lastScanRef.current &&
-        lastScanRef.current.id === data.id &&
-        now - lastScanRef.current.at < 2000
-      ) {
-        return;
-      }
-      lastScanRef.current = { id: data.id, at: now };
-      setScanned(true);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      nav.navigate('AddCut', { customerId: data.id });
-    } catch {
+    const parsed = parseQr(result.data);
+    if (parsed.kind === 'unknown') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert(t('salon.scanner.invalidQr'), t('salon.scanner.invalidQrHint'), [
         { text: 'OK', onPress: () => setScanned(false) },
       ]);
       setScanned(true);
+      return;
     }
-  };
+    const freshness = validateQrFreshness(parsed);
+    if (freshness === 'qr_expired') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert(
+        t('salon.scanner.expiredTitle'),
+        t('salon.scanner.expiredText'),
+        [{ text: 'OK', onPress: () => setScanned(false) }],
+      );
+      setScanned(true);
+      return;
+    }
+    if (freshness === 'qr_from_future') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert(t('salon.scanner.invalidQr'), t('salon.scanner.invalidQrHint'), [
+        { text: 'OK', onPress: () => setScanned(false) },
+      ]);
+      setScanned(true);
+      return;
+    }
 
-  const handleExitSalonMode = () => {
-    Alert.alert(
-      t('salon.scanner.exitTitle'),
-      t('salon.scanner.exitText'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('salon.scanner.exit'),
-          style: 'destructive',
-          onPress: async () => {
-            await signOut();
-            await storage.resetAll();
-            await clearMode();
-            nav.dispatch(
-              CommonActions.reset({
-                index: 0,
-                routes: [{ name: 'RoleSelection' as never }],
-              }),
-            );
-          },
-        },
-      ],
-    );
+    const customerId = parsed.data.id;
+    const now = Date.now();
+    if (
+      lastScanRef.current &&
+      lastScanRef.current.id === customerId &&
+      now - lastScanRef.current.at < 2000
+    ) {
+      return;
+    }
+    lastScanRef.current = { id: customerId, at: now };
+    setScanned(true);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    nav.navigate('AddCut', { customerId });
   };
 
   if (!permission) {
@@ -121,10 +118,42 @@ export function SalonScannerScreen() {
 
       <View style={styles.overlay} pointerEvents="box-none">
         <View style={styles.topBar}>
-          <Logo size={32} />
-          <Pressable onPress={handleExitSalonMode} hitSlop={12}>
-            <Text style={styles.exitLink}>{t('salon.scanner.exit')}</Text>
+          <Logo size={56} />
+          {limits.queueSignal ? (
+          <Pressable
+            onPress={() => nav.navigate('Queue')}
+            hitSlop={12}
+            style={styles.queueBtn}
+          >
+            <LinearGradient
+              colors={[colors.gradientStart, colors.gradientEnd]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <View
+              style={styles.queueBtnContent}
+              pointerEvents="none"
+              collapsable={false}
+            >
+              <Footprints color={colors.black} size={18} strokeWidth={2.4} />
+              <Text
+                style={styles.queueBtnLabel}
+                allowFontScaling={false}
+                numberOfLines={1}
+              >
+                {t('queue.salon.button')}
+              </Text>
+              {queueCount > 0 ? (
+                <View style={styles.queueBadge}>
+                  <Text style={styles.queueBadgeText}>
+                    {queueCount > 99 ? '99+' : queueCount}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
           </Pressable>
+          ) : null}
         </View>
 
         <View style={styles.middle} pointerEvents="none">
@@ -159,13 +188,43 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.xxl,
   },
-  exitLink: {
-    ...typography.bodyBold,
-    color: colors.white,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+  queueBtn: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: radius.pill,
+    overflow: 'hidden',
+    // Fallback orange si la LinearGradient ne se monte pas
+    backgroundColor: colors.primary,
+  },
+  queueBtnContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    // Force le contenu sur sa propre couche au-dessus du gradient sur Android
+    ...(Platform.OS === 'android' ? { elevation: 2 } : null),
+  },
+  queueBtnLabel: {
+    ...typography.caption,
+    fontWeight: '800',
+    color: colors.black,
+    letterSpacing: 0.3,
+    includeFontPadding: false,
+  },
+  queueBadge: {
+    minWidth: 20,
+    height: 20,
+    paddingHorizontal: 6,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 2,
+  },
+  queueBadgeText: {
+    ...typography.caption,
+    fontWeight: '800',
+    color: colors.white,
+    fontSize: 11,
   },
   middle: {
     alignItems: 'center',

@@ -3,6 +3,7 @@ import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { Platform } from 'react-native';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from './firebase';
+import { setSalonKioskPushToken } from './salons';
 
 const IS_EXPO_GO =
   Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
@@ -64,6 +65,50 @@ export async function registerPushTokenForCustomer(
       pushToken: token,
       pushTokenUpdatedAt: Date.now(),
     });
+    return token;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Register the salon kiosk's device for push notifications.
+ * Called on activation and on every salon-mode app start.
+ */
+export async function registerSalonKioskPushToken(
+  salonId: string,
+): Promise<string | null> {
+  if (!canUseRemotePush()) return null;
+
+  try {
+    const settings = await Notifications.getPermissionsAsync();
+    let granted = settings.granted;
+    if (!granted) {
+      const req = await Notifications.requestPermissionsAsync();
+      granted = req.granted;
+    }
+    if (!granted) return null;
+
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'default',
+        importance: Notifications.AndroidImportance.MAX,
+        lightColor: '#FF5722',
+        sound: 'default',
+      });
+    }
+
+    const projectId =
+      Constants.expoConfig?.extra?.eas?.projectId ||
+      (Constants as any).easConfig?.projectId;
+
+    const tokenResult = await Notifications.getExpoPushTokenAsync(
+      projectId ? { projectId } : undefined,
+    );
+    const token = tokenResult.data;
+    if (!token) return null;
+
+    await setSalonKioskPushToken(salonId, token);
     return token;
   } catch {
     return null;

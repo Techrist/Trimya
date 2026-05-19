@@ -21,9 +21,15 @@ import {
 import { storage } from '@/services/storage';
 import { getCustomer } from '@/services/customers';
 import { createReservation } from '@/services/reservations';
+import { getSalon } from '@/services/salons';
+import {
+  isSlotWithinOpening,
+  formatDayHours,
+  getDayHoursForDate,
+} from '@/services/openingHours';
 import { useT } from '@/i18n';
 import { colors, spacing, typography, radius } from '@/theme';
-import { Customer, ReservationService } from '@/types';
+import { Customer, ReservationService, Salon } from '@/types';
 import { ClientTabParamList, ReservationsStackParamList } from '@/navigation/types';
 
 type Nav = NativeStackNavigationProp<ReservationsStackParamList, 'ReservationForm'>;
@@ -32,6 +38,7 @@ export function ClientReservationFormScreen() {
   const nav = useNavigation<Nav>();
   const { t } = useT();
   const [customer, setCustomer] = useState<Customer | null>(null);
+  const [salon, setSalon] = useState<Salon | null>(null);
   const [date, setDate] = useState<number>(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
@@ -48,13 +55,29 @@ export function ClientReservationFormScreen() {
       if (!id) return;
       const c = await getCustomer(id);
       setCustomer(c);
+      if (c?.salonId) {
+        const s = await getSalon(c.salonId);
+        setSalon(s);
+      }
     })();
   }, []);
+
+  // Horaires du jour sélectionné — utilisé pour afficher au client
+  // si le salon est ouvert ou fermé ce jour-là.
+  const dayHours = salon ? getDayHoursForDate(salon, new Date(date)) : null;
 
   const handleSubmit = async () => {
     if (!customer) return;
     if (!time) {
       Alert.alert(t('reservation.form.timeRequired'), t('reservation.form.timeRequiredHint'));
+      return;
+    }
+    // Bloque la création si le salon est fermé à ce moment-là.
+    if (salon && !isSlotWithinOpening(salon, new Date(time), 30)) {
+      Alert.alert(
+        t('hours.slotClosedTitle'),
+        t('hours.slotClosedText'),
+      );
       return;
     }
     setSubmitting(true);

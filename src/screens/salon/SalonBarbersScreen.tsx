@@ -14,8 +14,11 @@ import { Screen } from '@/components/Screen';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { BarberAvatar } from '@/components/BarberAvatar';
+import { UpgradeModal } from '@/components/UpgradeModal';
 import { useApp } from '@/contexts/AppContext';
+import { useSalonPlan } from '@/hooks/useSalonPlan';
 import { subscribeBarbers } from '@/services/barbers';
+import { PLANS, getPlanLabel } from '@/lib/plans';
 import { useT } from '@/i18n';
 import { colors, radius, spacing, typography } from '@/theme';
 import { Barber } from '@/types';
@@ -27,8 +30,10 @@ export function SalonBarbersScreen() {
   const nav = useNavigation<Nav>();
   const { salonId } = useApp();
   const { t } = useT();
+  const { plan, limits } = useSalonPlan(salonId);
   const [list, setList] = useState<Barber[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showUpgrade, setShowUpgrade] = useState(false);
 
   useEffect(() => {
     if (!salonId) return;
@@ -42,6 +47,34 @@ export function SalonBarbersScreen() {
   const activeCount = list.filter((b) => b.active).length;
   const inactiveCount = list.length - activeCount;
 
+  // Le seuil prend en compte les coiffeurs ACTIFS uniquement, pour ne pas
+  // bloquer si le salon a juste un ancien coiffeur désactivé.
+  const atLimit =
+    limits.maxBarbers !== null && activeCount >= limits.maxBarbers;
+  const upgradeTarget = plan === 'free' ? 'standard' : 'pro';
+
+  const handleAdd = () => {
+    if (atLimit) {
+      Alert.alert(
+        t('plan.limit.barbersTitle'),
+        t('plan.limit.barbersBody', {
+          plan: getPlanLabel(plan, t),
+          max: String(limits.maxBarbers),
+          plural: (limits.maxBarbers ?? 0) > 1 ? 's' : '',
+        }),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          {
+            text: t('plan.locked.cta', { plan: getPlanLabel(upgradeTarget, t) }),
+            onPress: () => setShowUpgrade(true),
+          },
+        ],
+      );
+      return;
+    }
+    nav.navigate('BarberForm', {});
+  };
+
   return (
     <Screen padded={false}>
       <View style={styles.header}>
@@ -50,7 +83,7 @@ export function SalonBarbersScreen() {
         </Pressable>
         <Text style={styles.headerTitle}>{t('salon.barbers.title')}</Text>
         <Pressable
-          onPress={() => nav.navigate('BarberForm', {})}
+          onPress={() => handleAdd()}
           hitSlop={12}
           style={styles.addBtn}
         >
@@ -72,7 +105,7 @@ export function SalonBarbersScreen() {
           <View style={{ height: spacing.lg }} />
           <Button
             label={t('salon.barbers.empty.cta')}
-            onPress={() => nav.navigate('BarberForm', {})}
+            onPress={() => handleAdd()}
             fullWidth={false}
           />
         </View>
@@ -112,6 +145,12 @@ export function SalonBarbersScreen() {
           )}
         />
       )}
+
+      <UpgradeModal
+        visible={showUpgrade}
+        targetPlan={upgradeTarget}
+        onClose={() => setShowUpgrade(false)}
+      />
     </Screen>
   );
 }

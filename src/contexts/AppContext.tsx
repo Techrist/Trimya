@@ -10,10 +10,12 @@ interface AppContextValue {
   mode: AppMode | null;
   onboarded: boolean;
   salonId: string | null;
+  ownerId: string | null;
   setMode: (m: AppMode) => Promise<void>;
   clearMode: () => Promise<void>;
   setOnboarded: () => Promise<void>;
   setSalonId: (id: string) => Promise<void>;
+  setOwnerId: (id: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -24,18 +26,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [mode, setModeState] = useState<AppMode | null>(null);
   const [onboarded, setOnboardedState] = useState(false);
   const [salonId, setSalonIdState] = useState<string | null>(null);
+  const [ownerId, setOwnerIdState] = useState<string | null>(null);
 
   useEffect(() => {
     let unsubAuth: (() => void) | undefined;
     (async () => {
-      const [m, o, s] = await Promise.all([
+      const [m, o, s, oid] = await Promise.all([
         storage.getMode(),
         storage.isOnboarded(),
         storage.getSalonId(),
+        storage.getOwnerId(),
       ]);
       setModeState(m);
       setOnboardedState(o);
       setSalonIdState(s);
+      setOwnerIdState(oid);
 
       unsubAuth = onAuth((u) => {
         setUser(u);
@@ -67,6 +72,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setSalonIdState(id);
   }, []);
 
+  const setOwnerId = useCallback(async (id: string) => {
+    await storage.setOwnerId(id);
+    setOwnerIdState(id);
+  }, []);
+
   return (
     <AppContext.Provider
       value={{
@@ -75,10 +85,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         mode,
         onboarded,
         salonId,
+        ownerId,
         setMode,
         clearMode,
         setOnboarded,
         setSalonId,
+        setOwnerId,
       }}
     >
       {children}

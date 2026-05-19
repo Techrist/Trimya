@@ -12,10 +12,14 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { CommonActions } from '@react-navigation/native';
 import * as Notifications from 'expo-notifications';
-import { Bell, LogOut, Phone, User as UserIcon, Pencil, Check, X, Camera, ImagePlus } from 'lucide-react-native';
+import {
+  Bell, LogOut, Phone, User as UserIcon, Pencil, Check, X, Camera, ImagePlus,
+  Mail, Cake, Scissors, AlertTriangle, Trash2, ChevronDown, ChevronUp,
+} from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { Card } from '@/components/Card';
 import { Avatar } from '@/components/Avatar';
+import { Button } from '@/components/Button';
 import { LanguagePicker } from '@/components/LanguagePicker';
 import { useT } from '@/i18n';
 import { storage } from '@/services/storage';
@@ -24,6 +28,9 @@ import {
   setCustomerName,
   setCustomerPushEnabled,
   setCustomerPhoto,
+  updateCustomerPersonalInfo,
+  requestAccountDeletion,
+  cancelAccountDeletion,
 } from '@/services/customers';
 import { pickPhotoSquare } from '@/services/photos';
 import { registerPushTokenForCustomer } from '@/services/push';
@@ -42,6 +49,24 @@ export function ClientProfileScreen() {
   const [savingName, setSavingName] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
 
+  // Infos personnelles (email, date naissance)
+  const [email, setEmail] = useState('');
+  const [birthdate, setBirthdate] = useState(''); // YYYY-MM-DD
+  const [savingPersonal, setSavingPersonal] = useState(false);
+
+  // Préférences
+  const [cutNote, setCutNote] = useState('');
+  const [beardNote, setBeardNote] = useState('');
+  const [allergies, setAllergies] = useState('');
+  const [savingPrefs, setSavingPrefs] = useState(false);
+
+  // État des sections repliables — par défaut fermées pour alléger l'écran
+  const [infoOpen, setInfoOpen] = useState(false);
+  const [prefsOpen, setPrefsOpen] = useState(false);
+
+  // Suppression compte
+  const [deleting, setDeleting] = useState(false);
+
   useEffect(() => {
     let unsub: (() => void) | undefined;
     (async () => {
@@ -50,10 +75,115 @@ export function ClientProfileScreen() {
       unsub = subscribeCustomer(id, (c) => {
         setCustomer(c);
         setPushEnabled(c?.pushEnabled !== false && !!c?.pushToken);
+        if (c) {
+          setEmail(c.email ?? '');
+          setBirthdate(c.birthdate ?? '');
+          setCutNote(c.preferences?.cutNote ?? '');
+          setBeardNote(c.preferences?.beardNote ?? '');
+          setAllergies(c.preferences?.allergies ?? '');
+        }
       });
     })();
     return () => unsub?.();
   }, []);
+
+  // Helpers
+  const isValidEmail = (v: string) =>
+    v === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+
+  const isValidBirthdate = (v: string) => {
+    if (v === '') return true;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
+    const d = new Date(v);
+    if (Number.isNaN(d.getTime())) return false;
+    const year = d.getFullYear();
+    return year >= 1900 && d.getTime() <= Date.now();
+  };
+
+  const handleSavePersonal = async () => {
+    if (!customer) return;
+    if (!isValidEmail(email)) {
+      Alert.alert(t('common.error'), t('client.profile.emailInvalid'));
+      return;
+    }
+    if (!isValidBirthdate(birthdate)) {
+      Alert.alert(t('common.error'), t('client.profile.birthdateInvalid'));
+      return;
+    }
+    setSavingPersonal(true);
+    try {
+      await updateCustomerPersonalInfo(customer.id, {
+        email: email.trim() || null,
+        birthdate: birthdate.trim() || null,
+      });
+    } catch (e: any) {
+      Alert.alert(t('common.error'), e.message);
+    } finally {
+      setSavingPersonal(false);
+    }
+  };
+
+  const handleSavePrefs = async () => {
+    if (!customer) return;
+    setSavingPrefs(true);
+    try {
+      await updateCustomerPersonalInfo(customer.id, {
+        preferences: {
+          cutNote: cutNote.trim() || null,
+          beardNote: beardNote.trim() || null,
+          allergies: allergies.trim() || null,
+        },
+      });
+    } catch (e: any) {
+      Alert.alert(t('common.error'), e.message);
+    } finally {
+      setSavingPrefs(false);
+    }
+  };
+
+  const handleRequestDeletion = () => {
+    Alert.alert(
+      t('client.profile.deleteConfirmTitle'),
+      t('client.profile.deleteConfirmText'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('client.profile.deleteConfirm'),
+          style: 'destructive',
+          onPress: async () => {
+            if (!customer) return;
+            setDeleting(true);
+            try {
+              await requestAccountDeletion(customer.id);
+              // Sign out + retour à l'écran de sélection de rôle.
+              await signOut();
+              await storage.resetAll();
+              await clearMode();
+              nav.dispatch(
+                CommonActions.reset({
+                  index: 0,
+                  routes: [{ name: 'RoleSelection' as never }],
+                }),
+              );
+            } catch (e: any) {
+              Alert.alert(t('common.error'), e.message);
+            } finally {
+              setDeleting(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleCancelDeletion = async () => {
+    if (!customer) return;
+    try {
+      await cancelAccountDeletion(customer.id);
+    } catch (e: any) {
+      Alert.alert(t('common.error'), e.message);
+    }
+  };
 
   const handleStartEditName = () => {
     setNameDraft(customer?.name || '');
@@ -201,6 +331,141 @@ export function ClientProfileScreen() {
         </View>
       </Card>
 
+      {customer.deletionRequestedAt ? (
+        <Card style={styles.deletionWarn}>
+          <View style={styles.deletionWarnRow}>
+            <AlertTriangle color={colors.danger} size={22} strokeWidth={2.2} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.deletionWarnTitle}>
+                {t('client.profile.deletePendingTitle')}
+              </Text>
+              <Text style={styles.deletionWarnText}>
+                {t('client.profile.deletePendingText')}
+              </Text>
+            </View>
+          </View>
+          <View style={{ height: spacing.sm }} />
+          <Button
+            label={t('client.profile.deleteCancel')}
+            onPress={handleCancelDeletion}
+            variant="secondary"
+          />
+        </Card>
+      ) : null}
+
+      <CollapsibleCard
+        icon={<Mail color={colors.primary} size={20} strokeWidth={2.2} />}
+        title={t('client.profile.personalInfo')}
+        summary={
+          email || birthdate
+            ? t('client.profile.personalInfo.summaryFilled')
+            : t('client.profile.personalInfo.summaryEmpty')
+        }
+        open={infoOpen}
+        onToggle={() => setInfoOpen((v) => !v)}
+      >
+        <View style={styles.fieldRow}>
+          <Mail color={colors.textMuted} size={18} strokeWidth={2} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.fieldLabel}>{t('client.profile.fieldEmail')}</Text>
+            <TextInput
+              value={email}
+              onChangeText={setEmail}
+              placeholder={t('client.profile.emailPlaceholder')}
+              placeholderTextColor={colors.textDim}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              style={styles.plainInput}
+            />
+          </View>
+        </View>
+        <View style={styles.fieldRow}>
+          <Cake color={colors.textMuted} size={18} strokeWidth={2} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.fieldLabel}>{t('client.profile.fieldBirthdate')}</Text>
+            <TextInput
+              value={birthdate}
+              onChangeText={setBirthdate}
+              placeholder="AAAA-MM-JJ"
+              placeholderTextColor={colors.textDim}
+              keyboardType="numbers-and-punctuation"
+              style={styles.plainInput}
+              maxLength={10}
+            />
+            <Text style={styles.fieldHint}>{t('client.profile.birthdateHint')}</Text>
+          </View>
+        </View>
+        <Button
+          label={t('client.profile.savePersonal')}
+          onPress={handleSavePersonal}
+          loading={savingPersonal}
+        />
+      </CollapsibleCard>
+
+      <CollapsibleCard
+        icon={<Scissors color={colors.primary} size={20} strokeWidth={2.2} />}
+        title={t('client.profile.preferences')}
+        summary={
+          cutNote || beardNote || allergies
+            ? t('client.profile.preferences.summaryFilled')
+            : t('client.profile.preferences.summaryEmpty')
+        }
+        open={prefsOpen}
+        onToggle={() => setPrefsOpen((v) => !v)}
+      >
+        <View style={styles.fieldRow}>
+          <Scissors color={colors.textMuted} size={18} strokeWidth={2} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.fieldLabel}>{t('client.profile.prefCut')}</Text>
+            <TextInput
+              value={cutNote}
+              onChangeText={setCutNote}
+              placeholder={t('client.profile.prefCutPlaceholder')}
+              placeholderTextColor={colors.textDim}
+              style={styles.plainInput}
+              multiline
+              maxLength={200}
+            />
+          </View>
+        </View>
+        <View style={styles.fieldRow}>
+          <Scissors color={colors.textMuted} size={18} strokeWidth={2} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.fieldLabel}>{t('client.profile.prefBeard')}</Text>
+            <TextInput
+              value={beardNote}
+              onChangeText={setBeardNote}
+              placeholder={t('client.profile.prefBeardPlaceholder')}
+              placeholderTextColor={colors.textDim}
+              style={styles.plainInput}
+              multiline
+              maxLength={200}
+            />
+          </View>
+        </View>
+        <View style={styles.fieldRow}>
+          <AlertTriangle color={colors.textMuted} size={18} strokeWidth={2} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.fieldLabel}>{t('client.profile.prefAllergies')}</Text>
+            <TextInput
+              value={allergies}
+              onChangeText={setAllergies}
+              placeholder={t('client.profile.prefAllergiesPlaceholder')}
+              placeholderTextColor={colors.textDim}
+              style={styles.plainInput}
+              multiline
+              maxLength={200}
+            />
+          </View>
+        </View>
+        <Button
+          label={t('client.profile.savePrefs')}
+          onPress={handleSavePrefs}
+          loading={savingPrefs}
+          variant="secondary"
+        />
+      </CollapsibleCard>
+
       <Text style={styles.sectionTitle}>{t('client.profile.notifications')}</Text>
       <Card>
         <View style={styles.settingRow}>
@@ -234,6 +499,19 @@ export function ClientProfileScreen() {
         <LogOut color={colors.danger} size={18} strokeWidth={2.2} />
         <Text style={styles.signOutText}>{t('client.profile.signOut')}</Text>
       </Pressable>
+
+      {!customer.deletionRequestedAt ? (
+        <Pressable
+          onPress={handleRequestDeletion}
+          disabled={deleting}
+          style={styles.deleteAccountBtn}
+        >
+          <Trash2 color={colors.textMuted} size={16} strokeWidth={2} />
+          <Text style={styles.deleteAccountText}>
+            {t('client.profile.deleteAccount')}
+          </Text>
+        </Pressable>
+      ) : null}
     </Screen>
   );
 }
@@ -244,6 +522,57 @@ function Stat({ label, value, isText }: { label: string; value: number | string;
       <Text style={isText ? styles.statTextValue : styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
     </View>
+  );
+}
+
+/**
+ * Section repliable réutilisable, par défaut fermée pour alléger l'écran.
+ * Le header est tappable, affiche l'icône + le titre + un résumé compact
+ * (ex. "Renseignées" / "Vide") et un chevron qui indique l'état.
+ */
+function CollapsibleCard({
+  icon,
+  title,
+  summary,
+  open,
+  onToggle,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  summary?: string;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <Card style={styles.collapsibleCard}>
+      <Pressable
+        onPress={onToggle}
+        hitSlop={8}
+        style={styles.collapsibleHeader}
+      >
+        <View style={styles.collapsibleLeft}>
+          {icon}
+          <View style={{ flex: 1 }}>
+            <Text style={styles.collapsibleTitle}>{title}</Text>
+            {summary ? (
+              <Text style={styles.collapsibleSummary} numberOfLines={1}>
+                {summary}
+              </Text>
+            ) : null}
+          </View>
+        </View>
+        {open ? (
+          <ChevronUp color={colors.textMuted} size={20} strokeWidth={2.2} />
+        ) : (
+          <ChevronDown color={colors.textMuted} size={20} strokeWidth={2.2} />
+        )}
+      </Pressable>
+      {open ? (
+        <View style={styles.collapsibleBody}>{children}</View>
+      ) : null}
+    </Card>
   );
 }
 
@@ -314,6 +643,36 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     marginBottom: spacing.sm,
   },
+  collapsibleCard: {
+    marginTop: spacing.md,
+  },
+  collapsibleHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  collapsibleLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flex: 1,
+  },
+  collapsibleTitle: {
+    ...typography.bodyBold,
+    color: colors.text,
+  },
+  collapsibleSummary: {
+    ...typography.caption,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  collapsibleBody: {
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
   settingRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -364,5 +723,50 @@ const styles = StyleSheet.create({
   signOutText: {
     ...typography.button,
     color: colors.danger,
+  },
+  plainInput: {
+    ...typography.bodyBold,
+    color: colors.text,
+    marginTop: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 0,
+  },
+  fieldHint: {
+    ...typography.caption,
+    color: colors.textDim,
+    marginTop: 2,
+  },
+  deletionWarn: {
+    borderColor: colors.danger,
+    borderWidth: 1,
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+    marginBottom: spacing.md,
+  },
+  deletionWarnRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    alignItems: 'flex-start',
+  },
+  deletionWarnTitle: {
+    ...typography.bodyBold,
+    color: colors.danger,
+  },
+  deletionWarnText: {
+    ...typography.caption,
+    color: colors.textMuted,
+    marginTop: 4,
+  },
+  deleteAccountBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  deleteAccountText: {
+    ...typography.caption,
+    color: colors.textMuted,
+    textDecorationLine: 'underline',
   },
 });

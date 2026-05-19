@@ -4,7 +4,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Gift, Users, Star, ChevronLeft, LucideIcon } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { Card } from '@/components/Card';
+import { LockedFeature } from '@/components/LockedFeature';
 import { useApp } from '@/contexts/AppContext';
+import { useSalonPlan } from '@/hooks/useSalonPlan';
 import { subscribeSalonStats } from '@/services/stats';
 import { useNavigation } from '@react-navigation/native';
 import { useT } from '@/i18n';
@@ -15,13 +17,19 @@ export function SalonStatsScreen() {
   const nav = useNavigation<any>();
   const { salonId } = useApp();
   const { t } = useT();
+  const { limits, loading: planLoading } = useSalonPlan(salonId);
   const [stats, setStats] = useState<SalonStats | null>(null);
 
   useEffect(() => {
-    if (!salonId) return;
+    if (!salonId || !limits.advancedStats) return;
     const unsub = subscribeSalonStats(salonId, setStats);
     return unsub;
-  }, [salonId]);
+  }, [salonId, limits.advancedStats]);
+
+  // Tous les hooks au-dessus → return anticipé safe (Rules of Hooks).
+  if (!planLoading && !limits.advancedStats) {
+    return <LockedFeature requiredPlan="pro" />;
+  }
 
   return (
     <Screen padded scroll>

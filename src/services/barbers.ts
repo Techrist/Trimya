@@ -55,17 +55,24 @@ export function subscribeBarbers(
   options: { activeOnly?: boolean } = {},
 ): () => void {
   const q = query(collection(db, 'barbers'), where('salonId', '==', salonId));
-  return onSnapshot(q, (snap) => {
-    let list = snap.docs.map((d) => ({
-      id: d.id,
-      ...(d.data() as Omit<Barber, 'id'>),
-    }));
-    if (options.activeOnly) {
-      list = list.filter((b) => b.active);
-    }
-    list.sort((a, b) => a.name.localeCompare(b.name));
-    cb(list);
-  });
+  return onSnapshot(
+    q,
+    (snap) => {
+      let list = snap.docs.map((d) => ({
+        id: d.id,
+        ...(d.data() as Omit<Barber, 'id'>),
+      }));
+      if (options.activeOnly) {
+        list = list.filter((b) => b.active);
+      }
+      list.sort((a, b) => a.name.localeCompare(b.name));
+      cb(list);
+    },
+    (err) => {
+      console.warn('[barbers] subscribeBarbers error:', err.message);
+      cb([]);
+    },
+  );
 }
 
 export const pickBarberPhoto = pickPhotoSquare;

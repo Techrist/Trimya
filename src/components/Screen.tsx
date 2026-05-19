@@ -11,6 +11,13 @@ interface ScreenProps {
   style?: ViewStyle;
   centered?: boolean;
   keyboardAvoiding?: boolean;
+  keyboardVerticalOffset?: number;
+  /**
+   * Si true, le Screen n'applique pas de backgroundColor — utile quand
+   * un composant en arrière-plan (ImageBackground, gradient, etc.) doit
+   * être visible sur toute la surface, y compris dans les zones safe-area.
+   */
+  transparent?: boolean;
 }
 
 export function Screen({
@@ -20,9 +27,11 @@ export function Screen({
   style,
   centered = false,
   keyboardAvoiding = false,
+  keyboardVerticalOffset = 0,
+  transparent = false,
 }: ScreenProps) {
   const containerStyle = [
-    styles.container,
+    transparent ? styles.containerTransparent : styles.container,
     padded && styles.padded,
     centered && styles.centered,
     style,
@@ -32,7 +41,9 @@ export function Screen({
     <ScrollView
       contentContainerStyle={containerStyle}
       keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="interactive"
       showsVerticalScrollIndicator={false}
+      automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
     >
       {children}
     </ScrollView>
@@ -40,10 +51,16 @@ export function Screen({
     <View style={containerStyle}>{children}</View>
   );
 
+  // KeyboardAvoidingView sur les deux plateformes :
+  //  - iOS : behavior="padding" — pousse le contenu via padding bas
+  //  - Android : behavior="height" — redimensionne le wrapper
+  // On compte plus sur adjustResize seul car il a des bugs sur certains
+  // devices (notamment quand combiné à SafeAreaView + tab navigator).
   const wrapped = keyboardAvoiding ? (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.flex}
+      keyboardVerticalOffset={keyboardVerticalOffset}
     >
       {inner}
     </KeyboardAvoidingView>
@@ -52,7 +69,7 @@ export function Screen({
   );
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={transparent ? styles.safeTransparent : styles.safe}>
       <StatusBar style="light" />
       {wrapped}
     </SafeAreaView>
@@ -64,10 +81,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
+  safeTransparent: {
+    flex: 1,
+  },
   flex: { flex: 1 },
   container: {
     flexGrow: 1,
     backgroundColor: colors.bg,
+  },
+  containerTransparent: {
+    flexGrow: 1,
   },
   padded: {
     paddingHorizontal: spacing.lg,

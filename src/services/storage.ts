@@ -6,12 +6,13 @@ const KEYS = {
   onboarded: '@trimya/onboarded',
   salonId: '@trimya/salonId',
   customerId: '@trimya/customerId',
+  ownerId: '@trimya/ownerId',
 } as const;
 
 export const storage = {
   async getMode(): Promise<AppMode | null> {
     const v = await AsyncStorage.getItem(KEYS.mode);
-    return v === 'client' || v === 'salon' ? v : null;
+    return v === 'client' || v === 'salon' || v === 'owner' ? v : null;
   },
   async setMode(mode: AppMode): Promise<void> {
     await AsyncStorage.setItem(KEYS.mode, mode);
@@ -39,6 +40,13 @@ export const storage = {
   },
   async setCustomerId(id: string): Promise<void> {
     await AsyncStorage.setItem(KEYS.customerId, id);
+  },
+
+  async getOwnerId(): Promise<string | null> {
+    return AsyncStorage.getItem(KEYS.ownerId);
+  },
+  async setOwnerId(id: string): Promise<void> {
+    await AsyncStorage.setItem(KEYS.ownerId, id);
   },
 
   async resetAll(): Promise<void> {

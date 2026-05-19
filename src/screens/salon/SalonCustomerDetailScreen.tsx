@@ -11,7 +11,17 @@ import {
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
-import { ChevronLeft, Star, Scissors, Gift, Send, MessageCircle } from 'lucide-react-native';
+import {
+  ChevronLeft,
+  Star,
+  Scissors,
+  Gift,
+  Send,
+  MessageCircle,
+  Lock,
+  Sparkles,
+  MessageSquare,
+} from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { Avatar } from '@/components/Avatar';
 import { subscribeConversation } from '@/services/conversations';
@@ -20,15 +30,33 @@ import { useT, getCurrentLocale, localeToBcp47 } from '@/i18n';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { ProgressIndicator } from '@/components/ProgressIndicator';
+import { UpgradeModal } from '@/components/UpgradeModal';
+import { SubscriptionActivationSheet } from '@/components/SubscriptionActivationSheet';
+import { LockedFeatureCard } from '@/components/LockedFeatureCard';
 import { useApp } from '@/contexts/AppContext';
+import { useSalonPlan } from '@/hooks/useSalonPlan';
 import {
   subscribeCustomer,
   setCustomerVip,
   setCustomerNotes,
 } from '@/services/customers';
 import { addCut, subscribeRecentCuts } from '@/services/cuts';
+import { getSalon, subscribeSalon } from '@/services/salons';
+import {
+  activateSubscription,
+  cancelSubscription,
+  daysRemaining,
+  formatExpiry,
+} from '@/services/subscriptions';
+import { getReviewsForCuts } from '@/services/reviews';
 import { colors, radius, spacing, typography, REWARD_THRESHOLD } from '@/theme';
-import { Customer, Cut } from '@/types';
+import {
+  Customer,
+  Cut,
+  CutReview,
+  Salon,
+  isSubscriptionActive,
+} from '@/types';
 import { CustomersStackParamList } from '@/navigation/types';
 
 type Nav = NativeStackNavigationProp<CustomersStackParamList, 'CustomerDetail'>;
@@ -42,25 +70,102 @@ export function SalonCustomerDetailScreen() {
   const { t } = useT();
 
   const [customer, setCustomer] = useState<Customer | null>(null);
+  const [salon, setSalon] = useState<Salon | null>(null);
   const [cuts, setCuts] = useState<Cut[]>([]);
+  const [reviews, setReviews] = useState<Map<string, CutReview>>(new Map());
   const [notes, setNotes] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
   const [adding, setAdding] = useState(false);
   const [convo, setConvo] = useState<Conversation | null>(null);
+  const [showUpgrade, setShowUpgrade] = useState(false);
+  const [subscriptionSheetVisible, setSubscriptionSheetVisible] = useState(false);
+  const [subscriptionSubmitting, setSubscriptionSubmitting] = useState(false);
+  const { limits } = useSalonPlan(salonId);
+  const allowVipNotes = limits.vipAndNotes;
 
   useEffect(() => {
     const unsubC = subscribeCustomer(customerId, (c) => {
       setCustomer(c);
       if (c) setNotes(c.notes || '');
     });
-    const unsubH = subscribeRecentCuts(customerId, setCuts, 30);
-    const unsubConvo = subscribeConversation(customerId, setConvo);
+    const unsubH = subscribeRecentCuts(
+      customerId,
+      async (list) => {
+        setCuts(list);
+        // Charge en parallèle les notes correspondantes pour les coupes avec coiffeur.
+        const ids = list.filter((c) => c.barberId).map((c) => c.id);
+        if (ids.length > 0) {
+          const map = await getReviewsForCuts(ids);
+          setReviews(map);
+        } else {
+          setReviews(new Map());
+        }
+      },
+      30,
+    );
+    // On ne souscrit aux conversations que si le plan le permet, pour éviter
+    // des permission-denied côté Firestore (rule planAllows sur conversations).
+    const unsubConvo = limits.messaging
+      ? subscribeConversation(customerId, setConvo)
+      : undefined;
+    let unsubSalon: (() => void) | undefined;
+    if (salonId) {
+      unsubSalon = subscribeSalon(salonId, setSalon);
+    }
     return () => {
       unsubC();
       unsubH();
-      unsubConvo();
+      unsubConvo?.();
+      unsubSalon?.();
     };
-  }, [customerId]);
+  }, [customerId, salonId, limits.messaging]);
+
+  const handleActivateSubscription = async (amount: number) => {
+    if (!customer || !salon) return;
+    setSubscriptionSubmitting(true);
+    try {
+      const r = await activateSubscription({ customer, salon, amount });
+      setSubscriptionSheetVisible(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(
+        r.wasExtension
+          ? t('subscription.activation.extendedTitle')
+          : t('subscription.activation.activatedTitle'),
+        t('subscription.activation.confirmText', {
+          name: customer.name?.trim() || customer.phone,
+          date: formatExpiry(r.newExpiresAt),
+        }),
+      );
+    } catch (e: any) {
+      Alert.alert(t('common.error'), e.message);
+    } finally {
+      setSubscriptionSubmitting(false);
+    }
+  };
+
+  const handleCancelSubscription = () => {
+    if (!customer) return;
+    Alert.alert(
+      t('subscription.cancelConfirmTitle'),
+      t('subscription.cancelConfirmText', {
+        name: customer.name?.trim() || customer.phone,
+      }),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('subscription.cancelConfirmCta'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await cancelSubscription(customer.id);
+            } catch (e: any) {
+              Alert.alert(t('common.error'), e.message);
+            }
+          },
+        },
+      ],
+    );
+  };
 
   const handleAddCut = async () => {
     if (!customer || !salonId) return;
@@ -82,6 +187,10 @@ export function SalonCustomerDetailScreen() {
 
   const handleToggleVip = async () => {
     if (!customer) return;
+    if (!allowVipNotes) {
+      setShowUpgrade(true);
+      return;
+    }
     try {
       await setCustomerVip(customer.id, !customer.vip);
       Haptics.selectionAsync();
@@ -91,7 +200,7 @@ export function SalonCustomerDetailScreen() {
   };
 
   const handleSaveNotes = async () => {
-    if (!customer) return;
+    if (!customer || !allowVipNotes) return;
     setSavingNotes(true);
     try {
       await setCustomerNotes(customer.id, notes);
@@ -131,21 +240,30 @@ export function SalonCustomerDetailScreen() {
               <Pressable
                 onPress={handleToggleVip}
                 hitSlop={12}
-                style={[styles.vipToggle, customer.vip && styles.vipToggleActive]}
+                style={[
+                  styles.vipToggle,
+                  customer.vip && allowVipNotes && styles.vipToggleActive,
+                ]}
               >
-                <Star
-                  color={customer.vip ? colors.accent : colors.textMuted}
-                  size={16}
-                  strokeWidth={2.2}
-                  fill={customer.vip ? colors.accent : 'transparent'}
-                />
+                {allowVipNotes ? (
+                  <Star
+                    color={customer.vip ? colors.accent : colors.textMuted}
+                    size={16}
+                    strokeWidth={2.2}
+                    fill={customer.vip ? colors.accent : 'transparent'}
+                  />
+                ) : (
+                  <Lock color={colors.textMuted} size={14} strokeWidth={2.2} />
+                )}
                 <Text
                   style={[
                     styles.vipToggleText,
-                    customer.vip && styles.vipToggleTextActive,
+                    customer.vip && allowVipNotes && styles.vipToggleTextActive,
                   ]}
                 >
-                  {customer.vip ? t('salon.customer.vipBadge') : t('salon.customer.markVip')}
+                  {customer.vip && allowVipNotes
+                    ? t('salon.customer.vipBadge')
+                    : t('salon.customer.markVip')}
                 </Text>
               </Pressable>
             </View>
@@ -162,6 +280,32 @@ export function SalonCustomerDetailScreen() {
             <Card style={styles.progressCard} elevated>
               <ProgressIndicator count={customer.currentCount} />
             </Card>
+
+            {limits.subscriptions ? (
+              <SubscriptionSection
+                customer={customer}
+                onActivate={() => setSubscriptionSheetVisible(true)}
+                onCancel={handleCancelSubscription}
+                t={t}
+              />
+            ) : isSubscriptionActive(customer) ? (
+              // Le salon a downgrade mais le client a encore un abonnement actif
+              // → on affiche en lecture seule, sans permettre prolongation.
+              <SubscriptionSection
+                customer={customer}
+                onActivate={() => {}}
+                onCancel={handleCancelSubscription}
+                t={t}
+                readOnly
+              />
+            ) : (
+              <View style={{ marginBottom: spacing.lg }}>
+                <LockedFeatureCard
+                  requiredPlan="pro"
+                  body={t('subscription.lockedBody')}
+                />
+              </View>
+            )}
 
             <View style={styles.statsRow}>
               <Stat label={t('salon.customer.stat.cuts')} value={customer.totalCuts} />
@@ -190,44 +334,67 @@ export function SalonCustomerDetailScreen() {
               loading={adding}
             />
 
-            <View style={styles.actionsRow}>
-              <Pressable
-                onPress={() => nav.navigate('Chat', { customerId })}
-                style={[styles.actionBtn, { flex: 1 }]}
-              >
-                <MessageCircle color={colors.primary} size={18} strokeWidth={2.2} />
-                <Text style={styles.actionBtnText}>{t('salon.customer.actionConversation')}</Text>
-                {convo && convo.unreadBySalon > 0 && (
-                  <View style={styles.actionBadge}>
-                    <Text style={styles.actionBadgeText}>
-                      {convo.unreadBySalon > 9 ? '9+' : convo.unreadBySalon}
-                    </Text>
-                  </View>
-                )}
-              </Pressable>
+            {limits.messaging ? (
+              <View style={styles.actionsRow}>
+                <Pressable
+                  onPress={() => nav.navigate('Chat', { customerId })}
+                  style={[styles.actionBtn, { flex: 1 }]}
+                >
+                  <MessageCircle color={colors.primary} size={18} strokeWidth={2.2} />
+                  <Text style={styles.actionBtnText}>{t('salon.customer.actionConversation')}</Text>
+                  {convo && convo.unreadBySalon > 0 && (
+                    <View style={styles.actionBadge}>
+                      <Text style={styles.actionBadgeText}>
+                        {convo.unreadBySalon > 9 ? '9+' : convo.unreadBySalon}
+                      </Text>
+                    </View>
+                  )}
+                </Pressable>
 
-              <Pressable
-                onPress={() => nav.navigate('ComposeNotification', { customerId })}
-                style={[styles.actionBtn, { flex: 1 }]}
-              >
-                <Send color={colors.primary} size={18} strokeWidth={2.2} />
-                <Text style={styles.actionBtnText}>{t('salon.customer.actionNotification')}</Text>
-              </Pressable>
-            </View>
+                <Pressable
+                  onPress={() => nav.navigate('ComposeNotification', { customerId })}
+                  style={[styles.actionBtn, { flex: 1 }]}
+                >
+                  <Send color={colors.primary} size={18} strokeWidth={2.2} />
+                  <Text style={styles.actionBtnText}>{t('salon.customer.actionNotification')}</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <View style={{ marginVertical: spacing.sm }}>
+                <LockedFeatureCard
+                  requiredPlan="standard"
+                  body={t('salon.customer.messagingLockedBody')}
+                />
+              </View>
+            )}
 
             <View style={styles.notesSection}>
               <Text style={styles.sectionLabel}>{t('salon.customer.notes.title')}</Text>
-              <TextInput
-                value={notes}
-                onChangeText={setNotes}
-                onBlur={handleSaveNotes}
-                placeholder={t('salon.customer.notes.placeholder')}
-                placeholderTextColor={colors.textDim}
-                multiline
-                style={styles.notesInput}
-              />
-              {savingNotes && (
-                <Text style={styles.savingHint}>{t('salon.customer.notes.saving')}</Text>
+              {allowVipNotes ? (
+                <>
+                  <TextInput
+                    value={notes}
+                    onChangeText={setNotes}
+                    onBlur={handleSaveNotes}
+                    placeholder={t('salon.customer.notes.placeholder')}
+                    placeholderTextColor={colors.textDim}
+                    multiline
+                    style={styles.notesInput}
+                  />
+                  {savingNotes && (
+                    <Text style={styles.savingHint}>{t('salon.customer.notes.saving')}</Text>
+                  )}
+                </>
+              ) : (
+                <Pressable
+                  onPress={() => setShowUpgrade(true)}
+                  style={styles.notesLockedRow}
+                >
+                  <Lock color={colors.textMuted} size={16} strokeWidth={2.2} />
+                  <Text style={styles.notesLockedText}>
+                    {t('plan.locked.body', { plan: 'Standard' })}
+                  </Text>
+                </Pressable>
               )}
             </View>
 
@@ -239,10 +406,116 @@ export function SalonCustomerDetailScreen() {
             )}
           </View>
         }
-        renderItem={({ item }) => <HistoryRow cut={item} t={t} />}
+        renderItem={({ item }) => (
+          <HistoryRow cut={item} review={reviews.get(item.id) || null} t={t} />
+        )}
         ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
       />
+
+      <UpgradeModal
+        visible={showUpgrade}
+        targetPlan="standard"
+        onClose={() => setShowUpgrade(false)}
+      />
+
+      <SubscriptionActivationSheet
+        visible={subscriptionSheetVisible}
+        customer={customer}
+        salon={salon}
+        loading={subscriptionSubmitting}
+        onCancel={() => setSubscriptionSheetVisible(false)}
+        onConfirm={handleActivateSubscription}
+      />
     </Screen>
+  );
+}
+
+function SubscriptionSection({
+  customer,
+  onActivate,
+  onCancel,
+  t,
+  readOnly = false,
+}: {
+  customer: Customer;
+  onActivate: () => void;
+  onCancel: () => void;
+  t: (key: any, vars?: Record<string, any>) => string;
+  /** Mode lecture seule : le salon a perdu le plan Pro mais l'abonnement
+   *  reste actif jusqu'à expiration. Plus de bouton "Prolonger". */
+  readOnly?: boolean;
+}) {
+  const active = isSubscriptionActive(customer);
+  const days = daysRemaining(customer);
+
+  // Card.style accepte un seul ViewStyle, on aplatit pour éviter le mismatch.
+  const cardStyle = {
+    ...styles.subscriptionCard,
+    ...(active ? styles.subscriptionCardActive : {}),
+  };
+
+  return (
+    <Card style={cardStyle}>
+      <View style={styles.subscriptionHeader}>
+        <Sparkles
+          color={active ? colors.primary : colors.textMuted}
+          size={20}
+          strokeWidth={2.2}
+        />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.subscriptionTitle}>
+            {active
+              ? t('subscription.salon.activeTitle')
+              : t('subscription.salon.inactiveTitle')}
+          </Text>
+          {active && customer.subscriptionExpiresAt ? (
+            <Text style={styles.subscriptionSubtitle}>
+              {t('subscription.salon.expiresOn', {
+                date: formatExpiry(customer.subscriptionExpiresAt),
+              })}
+              {' · '}
+              {t(
+                days > 1
+                  ? 'subscription.daysLeftPlural'
+                  : 'subscription.daysLeft',
+                { count: days },
+              )}
+            </Text>
+          ) : (
+            <Text style={styles.subscriptionSubtitle}>
+              {t('subscription.salon.inactiveHint')}
+            </Text>
+          )}
+        </View>
+      </View>
+
+      {readOnly ? (
+        <Text style={styles.subscriptionReadOnlyHint}>
+          {t('subscription.salon.readOnlyHint')}
+        </Text>
+      ) : (
+        <View style={styles.subscriptionActions}>
+          <View style={{ flex: 1 }}>
+            <Button
+              label={
+                active
+                  ? t('subscription.salon.extendCta')
+                  : t('subscription.salon.activateCta')
+              }
+              onPress={onActivate}
+              variant={active ? 'secondary' : 'primary'}
+            />
+          </View>
+          {active ? (
+            <Pressable onPress={onCancel} style={styles.subscriptionCancelBtn}>
+              <Text style={styles.subscriptionCancelText}>
+                {t('subscription.salon.cancelCta')}
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
+      )}
+    </Card>
   );
 }
 
@@ -255,7 +528,15 @@ function Stat({ label, value, isText }: { label: string; value: number | string;
   );
 }
 
-function HistoryRow({ cut, t }: { cut: Cut; t: (key: any) => string }) {
+function HistoryRow({
+  cut,
+  review,
+  t,
+}: {
+  cut: Cut;
+  review: CutReview | null;
+  t: (key: any) => string;
+}) {
   const date = new Date(cut.createdAt);
   const bcp47 = localeToBcp47(getCurrentLocale());
   const Icon = cut.wasReward ? Gift : Scissors;
@@ -290,8 +571,34 @@ function HistoryRow({ cut, t }: { cut: Cut; t: (key: any) => string }) {
               minute: '2-digit',
             })}
           </Text>
+          {cut.barberName ? (
+            <Text style={styles.histBarber}>{cut.barberName}</Text>
+          ) : null}
         </View>
+        {review ? (
+          <View style={styles.histReviewBadge}>
+            <Star
+              color={colors.accent}
+              fill={colors.accent}
+              size={12}
+              strokeWidth={2}
+            />
+            <Text style={styles.histReviewBadgeText}>{review.rating}</Text>
+          </View>
+        ) : null}
       </View>
+      {review?.comment ? (
+        <View style={styles.histCommentRow}>
+          <MessageSquare
+            color={colors.textMuted}
+            size={14}
+            strokeWidth={2}
+          />
+          <Text style={styles.histComment} numberOfLines={3}>
+            {review.comment}
+          </Text>
+        </View>
+      ) : null}
     </Card>
   );
 }
@@ -359,6 +666,49 @@ const styles = StyleSheet.create({
   },
   progressCard: {
     marginVertical: spacing.lg,
+  },
+  subscriptionCard: {
+    marginBottom: spacing.lg,
+    gap: spacing.md,
+  },
+  subscriptionCardActive: {
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    backgroundColor: 'rgba(255, 87, 34, 0.06)',
+  },
+  subscriptionHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
+  subscriptionTitle: {
+    ...typography.bodyBold,
+    color: colors.text,
+  },
+  subscriptionSubtitle: {
+    ...typography.caption,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  subscriptionActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  subscriptionCancelBtn: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  subscriptionCancelText: {
+    ...typography.caption,
+    color: colors.danger,
+    fontWeight: '700',
+  },
+  subscriptionReadOnlyHint: {
+    ...typography.caption,
+    color: colors.textMuted,
+    fontStyle: 'italic',
+    textAlign: 'center',
   },
   statsRow: {
     flexDirection: 'row',
@@ -446,6 +796,21 @@ const styles = StyleSheet.create({
     color: colors.textDim,
     marginTop: spacing.xs,
   },
+  notesLockedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing.md,
+  },
+  notesLockedText: {
+    flex: 1,
+    ...typography.caption,
+    color: colors.textMuted,
+  },
   emptyHistory: {
     ...typography.body,
     color: colors.textDim,
@@ -475,5 +840,41 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textMuted,
     marginTop: 2,
+  },
+  histBarber: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  histReviewBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(255, 235, 59, 0.12)',
+    borderWidth: 1,
+    borderColor: colors.accent,
+  },
+  histReviewBadgeText: {
+    ...typography.caption,
+    fontWeight: '800',
+    color: colors.accent,
+  },
+  histCommentRow: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  histComment: {
+    flex: 1,
+    ...typography.caption,
+    color: colors.textMuted,
+    fontStyle: 'italic',
   },
 });

@@ -12,9 +12,11 @@ import { Star, ChevronRight, MessageCircle } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { Card } from '@/components/Card';
 import { Avatar } from '@/components/Avatar';
+import { LockedFeature } from '@/components/LockedFeature';
 import { getCustomer } from '@/services/customers';
 import { useT, getCurrentLocale, localeToBcp47 } from '@/i18n';
 import { useApp } from '@/contexts/AppContext';
+import { useSalonPlan } from '@/hooks/useSalonPlan';
 import { subscribeSalonConversations } from '@/services/conversations';
 import { colors, radius, spacing, typography } from '@/theme';
 import { Conversation } from '@/types';
@@ -26,17 +28,26 @@ export function SalonMessagesScreen() {
   const nav = useNavigation<Nav>();
   const { salonId } = useApp();
   const { t } = useT();
+  const { limits, loading: planLoading } = useSalonPlan(salonId);
   const [convos, setConvos] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!salonId) return;
+    if (!salonId || !limits.messaging) {
+      setLoading(false);
+      return;
+    }
     const unsub = subscribeSalonConversations(salonId, (list) => {
       setConvos(list);
       setLoading(false);
     });
     return unsub;
-  }, [salonId]);
+  }, [salonId, limits.messaging]);
+
+  // Bloqué pour les salons en plan Free.
+  if (!planLoading && !limits.messaging) {
+    return <LockedFeature requiredPlan="standard" />;
+  }
 
   return (
     <Screen padded={false}>
