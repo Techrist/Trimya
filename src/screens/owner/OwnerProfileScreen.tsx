@@ -24,6 +24,7 @@ import {
 import { Screen } from '@/components/Screen';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
+import { LanguagePicker } from '@/components/LanguagePicker';
 import { useApp } from '@/contexts/AppContext';
 import { useOwner } from '@/hooks/useOwner';
 import {
@@ -387,6 +388,9 @@ export function OwnerProfileScreen() {
           <Text style={styles.actionText}>{t('owner.profile.supportEmail')}</Text>
         </Pressable>
       </Card>
+
+      <Text style={styles.sectionTitle}>{t('client.profile.language')}</Text>
+      <LanguagePicker />
 
       <Pressable onPress={handleSignOut} style={styles.signOutBtn}>
         <LogOut color={colors.danger} size={18} strokeWidth={2.2} />

@@ -5,6 +5,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Store, ChevronRight, Ban, CheckCircle2, Clock } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { Card } from '@/components/Card';
+import { Avatar } from '@/components/Avatar';
 import { useOwner } from '@/hooks/useOwner';
 import { useApp } from '@/contexts/AppContext';
 import { useT } from '@/i18n';
@@ -56,9 +57,13 @@ export function OwnerSalonsListScreen() {
             >
               <Card>
                 <View style={styles.row}>
-                  <View style={styles.iconWrap}>
-                    <Store color={colors.primary} size={22} strokeWidth={2.2} />
-                  </View>
+                  {item.logo ? (
+                    <Avatar name={item.name} photo={item.logo} size={48} />
+                  ) : (
+                    <View style={styles.iconWrap}>
+                      <Store color={colors.primary} size={22} strokeWidth={2.2} />
+                    </View>
+                  )}
                   <View style={{ flex: 1 }}>
                     <Text style={styles.name}>{item.name}</Text>
                     <Text style={styles.meta}>{item.city}</Text>

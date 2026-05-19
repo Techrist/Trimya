@@ -33,6 +33,7 @@ import {
 } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { Card } from '@/components/Card';
+import { Avatar } from '@/components/Avatar';
 import { db } from '@/services/firebase';
 import {
   getSalonSubscriptionMetrics,
@@ -149,9 +150,13 @@ export function OwnerSalonDetailScreen() {
       </Pressable>
 
       <View style={styles.hero}>
-        <View style={styles.heroIcon}>
-          <Building2 color={colors.primary} size={32} strokeWidth={2.2} />
-        </View>
+        {salon.logo ? (
+          <Avatar name={salon.name} photo={salon.logo} size={80} />
+        ) : (
+          <View style={styles.heroIcon}>
+            <Building2 color={colors.primary} size={32} strokeWidth={2.2} />
+          </View>
+        )}
         <Text style={styles.title}>{salon.name}</Text>
         <View style={styles.metaRow}>
           {salon.city ? (
