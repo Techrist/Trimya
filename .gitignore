@@ -14,3 +14,19 @@ android/
 .idea/
 firebase-service-account*.json
 *-service-account.json
+google-services.json
+GoogleService-Info.plist
+
+# Signing & certificats (Android / iOS)
+*.keystore
+*.jks
+*.p12
+*.p8
+*.mobileprovision
+*.cer
+
+# Cloud Functions secrets (firebase functions:config)
+.runtimeconfig.json
+
+# Firebase CLI cache local
+.firebase/
