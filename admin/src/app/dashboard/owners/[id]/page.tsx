@@ -18,6 +18,7 @@ import {
   Ban,
   Power,
   RefreshCw,
+  Hourglass,
 } from "lucide-react";
 import { db } from "@/lib/firebase-client";
 import { Card, CardTitle, CardDescription } from "@/components/ui/Card";
@@ -28,6 +29,8 @@ import { adminFetch } from "@/lib/auth-client";
 import {
   PLANS,
   isOwnerEnterpriseActive,
+  isOwnerTrialActive,
+  ownerTrialDaysLeft,
   planExpiresInDays,
   formatPlanPrice,
 } from "@/lib/plans";
@@ -51,6 +54,7 @@ export default function OwnerDetailPage({
   const [months, setMonths] = useState(1);
   const [paymentRef, setPaymentRef] = useState("");
   const [assignSalonId, setAssignSalonId] = useState("");
+  const [trialDays, setTrialDays] = useState(14);
   // Tier choisi pour l'activation (Standard 25k vs Pro 40k).
   // Pré-sélection : si owner déjà sur un plan, on reste sur le sien.
   const [selectedTier, setSelectedTier] = useState<
@@ -151,6 +155,8 @@ export default function OwnerDetailPage({
   }
 
   const enterprise = isOwnerEnterpriseActive(owner);
+  const onTrial = isOwnerTrialActive(owner);
+  const trialLeft = ownerTrialDaysLeft(owner);
   const expiresInDays = planExpiresInDays(owner);
   const disabled = !!owner.disabledAt;
   const limit = PLANS.enterprise.limits.maxSalons ?? 5;
@@ -502,6 +508,90 @@ export default function OwnerDetailPage({
             </>
           )}
         </div>
+      </Card>
+
+      {/* Essai Pro Entreprise */}
+      <Card>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <CardTitle>Essai Pro Entreprise</CardTitle>
+            <CardDescription>
+              Accorde un essai Pro temporaire à ce propriétaire (offre
+              commerciale, dédommagement, démarrage). L&apos;essai est
+              propagé en cascade sur les <strong>{salons.length}</strong>{" "}
+              salon{salons.length > 1 ? "s" : ""} de la chaîne — chacun
+              passe en Pro pendant la durée définie, sans changer leur
+              plan brut.
+            </CardDescription>
+          </div>
+          {onTrial ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/15 px-3 py-1 text-xs font-bold uppercase tracking-wider text-accent">
+              <Hourglass className="h-3.5 w-3.5" />
+              Essai actif · {trialLeft} jour{trialLeft > 1 ? "s" : ""}
+            </span>
+          ) : null}
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-end gap-3">
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-text-muted">
+              Durée (jours)
+            </label>
+            <Input
+              type="number"
+              min={0}
+              max={120}
+              value={trialDays}
+              onChange={(e) => setTrialDays(Number(e.target.value))}
+              className="w-32"
+            />
+          </div>
+          <Button
+            variant="secondary"
+            loading={busy?.startsWith('{"action":"set-trial"')}
+            onClick={async () => {
+              if (
+                salons.length > 0 &&
+                !window.confirm(
+                  `Accorder ${trialDays} jour${trialDays > 1 ? "s" : ""} d'essai Pro à ce propriétaire ?\n\n${salons.length} salon${salons.length > 1 ? "s" : ""} de la chaîne passeront en Pro pendant la même durée (les essais salon plus longs sont préservés).`,
+                )
+              ) {
+                return;
+              }
+              await call({ action: "set-trial", days: trialDays });
+            }}
+          >
+            <Hourglass className="h-4 w-4" />
+            {onTrial ? "Remplacer l'essai" : "Définir l'essai"}
+          </Button>
+          {onTrial ? (
+            <Button
+              variant="ghost"
+              loading={busy?.startsWith('{"action":"set-trial"')}
+              onClick={() => {
+                if (
+                  window.confirm(
+                    "Annuler l'essai propriétaire ? Les essais individuels des salons resteront actifs (ne sont pas raccourcis).",
+                  )
+                ) {
+                  call({ action: "set-trial", days: 0 });
+                }
+              }}
+            >
+              Annuler l&apos;essai
+            </Button>
+          ) : null}
+        </div>
+        {onTrial ? (
+          <p className="mt-3 text-xs text-text-dim">
+            Expire le{" "}
+            <strong className="text-text-muted">
+              {formatDate(owner.trialEndsAt ?? 0)}
+            </strong>
+            . Pendant l&apos;essai, tous les salons de la chaîne ont accès aux
+            features Pro (réservations, abonnements, stats par coiffeur).
+          </p>
+        ) : null}
       </Card>
 
       {/* Activation / désactivation compte */}

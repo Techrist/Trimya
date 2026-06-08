@@ -29,6 +29,14 @@ export interface Salon {
   planExpiresAt?: number;
   /** Fin de l'essai Pro gratuit à l'activation (ms). 0 = pas de trial. */
   trialEndsAt?: number;
+  /** Plan hérité d'un owner Entreprise (dénormalisé). */
+  inheritedPlan?: "standard" | "pro";
+  /** Seuil de récompense fidélité (1-20, défaut 4). */
+  rewardThreshold?: number;
+  /** Seuil effectivement appliqué (dénormalisé selon mode owner). */
+  effectiveRewardThreshold?: number;
+  /** True si l'owner du salon a activé la fidélité partagée. */
+  loyaltySharedWithOwner?: boolean;
 }
 
 /**
@@ -58,8 +66,20 @@ export interface Owner {
   plan?: OwnerPlanId;
   planActivatedAt?: number;
   planExpiresAt?: number;
+  /**
+   * Fin de l'essai Entreprise Pro gratuit accordé à l'owner (ms).
+   * 0 ou absent = pas de trial. Quand actif, l'admin pousse aussi
+   * `salon.trialEndsAt` sur chaque salon de la chaîne, ce qui leur fait
+   * hériter du plan Pro le temps de l'essai (mécanisme déjà existant
+   * côté salon : `effectivePlan` checke trialEndsAt avant le plan brut).
+   */
+  trialEndsAt?: number;
   /** IDs des salons possédés (dénormalisé). */
   salonIds?: string[];
+  /** Mode de fidélité pour la chaîne ('shared' / 'blocked', défaut 'blocked'). */
+  loyaltyMode?: "shared" | "blocked";
+  /** Seuil appliqué à la chaîne si loyaltyMode='shared'. Défaut 4. */
+  chainRewardThreshold?: number;
   createdAt: number;
   disabledAt?: number;
 }

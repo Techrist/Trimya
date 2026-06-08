@@ -46,6 +46,39 @@ async function syncSalonsInheritedPlan(
 }
 
 /**
+ * Propage un trial owner sur les salons : pour chaque salon de la chaîne,
+ * on écrit `salon.trialEndsAt = max(existing, ownerTrial)`.
+ *
+ * Pourquoi le `max` ? Un salon peut avoir un trial individuel plus long
+ * que celui de l'owner (par exemple obtenu avant son rattachement à la
+ * chaîne). On ne veut pas le raccourcir.
+ *
+ * Si `ownerTrialEndsAt === 0` (= annulation), on NE TOUCHE PAS les salons :
+ * leurs trials individuels restent valides. C'est volontaire — un admin
+ * qui veut tout couper doit faire le ménage salon par salon.
+ */
+async function propagateOwnerTrialToSalons(
+  salonIds: string[],
+  ownerTrialEndsAt: number,
+): Promise<void> {
+  if (salonIds.length === 0 || ownerTrialEndsAt <= 0) return;
+  // Lecture des trials actuels pour préserver les plus longs.
+  const refs = salonIds.map((sid) => adminDb.collection("salons").doc(sid));
+  const snaps = await adminDb.getAll(...refs);
+  const batch = adminDb.batch();
+  for (const snap of snaps) {
+    if (!snap.exists) continue;
+    const data = snap.data() ?? {};
+    const existing = typeof data.trialEndsAt === "number" ? data.trialEndsAt : 0;
+    const next = Math.max(existing, ownerTrialEndsAt);
+    if (next !== existing) {
+      batch.update(snap.ref, { trialEndsAt: next });
+    }
+  }
+  await batch.commit();
+}
+
+/**
  * Actions sur un owner : upgrade plan, extend, downgrade, set-trial,
  * assign/remove salon, désactivation, notes privées.
  */
@@ -60,6 +93,10 @@ const Body = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("extend"),
     months: z.number().int().min(1).max(36),
+  }),
+  z.object({
+    action: z.literal("set-trial"),
+    days: z.number().int().min(0).max(120),
   }),
   z.object({
     action: z.literal("assign-salon"),
@@ -160,10 +197,30 @@ export async function PATCH(
         await syncSalonsInheritedPlan(salonIds, null);
         return NextResponse.json({ ok: true });
       }
+      case "set-trial": {
+        // Accorde (ou annule) un essai Pro à l'owner, et propage sur
+        // chacun de ses salons via salon.trialEndsAt. Le mécanisme de
+        // bascule en Pro pendant l'essai est déjà géré côté salon
+        // (effectivePlan prend trialEndsAt en priorité).
+        const trialEndsAt =
+          parsed.data.days === 0 ? 0 : now + parsed.data.days * DAY_MS;
+        await ownerRef.update({ trialEndsAt });
+        const salonIds = Array.isArray(data.salonIds) ? (data.salonIds as string[]) : [];
+        // En cas d'annulation (trialEndsAt=0), on ne touche pas aux salons
+        // pour préserver d'éventuels trials individuels en cours.
+        if (trialEndsAt > 0) {
+          await propagateOwnerTrialToSalons(salonIds, trialEndsAt);
+        }
+        return NextResponse.json({
+          ok: true,
+          trialEndsAt,
+          propagatedSalons: trialEndsAt > 0 ? salonIds.length : 0,
+        });
+      }
       case "assign-salon": {
         await assignSalonToOwner(id, parsed.data.salonId);
-        // Si l'owner est en Entreprise actif, le salon hérite immédiatement
-        // selon le tier (Standard ou Pro).
+        // 1) Si l'owner est en Entreprise actif → inheritedPlan immédiat
+        //    (Standard ou Pro selon le tier).
         const ownerPlan = activeOwnerPlan(data);
         if (ownerPlan) {
           await syncSalonsInheritedPlan(
@@ -171,7 +228,24 @@ export async function PATCH(
             getInheritedSalonPlan(ownerPlan),
           );
         }
-        return NextResponse.json({ ok: true });
+        // 2) Si l'owner a un essai Pro actif → le propage sur le nouveau
+        //    salon. Le max() interne préserve un éventuel trial individuel
+        //    plus long que celui de l'owner (cas rare mais propre).
+        const ownerTrialEndsAt =
+          typeof data.trialEndsAt === "number" ? data.trialEndsAt : 0;
+        if (ownerTrialEndsAt > now) {
+          await propagateOwnerTrialToSalons(
+            [parsed.data.salonId],
+            ownerTrialEndsAt,
+          );
+        }
+        return NextResponse.json({
+          ok: true,
+          inheritedPlanApplied: ownerPlan
+            ? getInheritedSalonPlan(ownerPlan)
+            : null,
+          trialApplied: ownerTrialEndsAt > now ? ownerTrialEndsAt : null,
+        });
       }
       case "remove-salon": {
         await removeSalonFromOwner(id, parsed.data.salonId);
@@ -189,17 +263,26 @@ export async function PATCH(
       }
       case "sync-salons": {
         // Backfill / réparation manuelle : recalcule inheritedPlan pour chacun
-        // des salons de l'owner selon son état Entreprise actuel.
+        // des salons de l'owner selon son état Entreprise actuel, et
+        // ré-applique l'essai owner s'il est actif.
         // Utile après une action manuelle en base ou pour rattraper un état
-        // incohérent (héritage non posé).
+        // incohérent (héritage non posé, trial pas propagé).
         const salonIds = Array.isArray(data.salonIds) ? (data.salonIds as string[]) : [];
         const ownerPlan = activeOwnerPlan(data);
         const target = ownerPlan ? getInheritedSalonPlan(ownerPlan) : null;
+        // Trial propagation pendant le sync — le max() évite les régressions
+        // si certains salons ont déjà un trial plus long.
+        const ownerTrialEndsAt =
+          typeof data.trialEndsAt === "number" ? data.trialEndsAt : 0;
+        if (ownerTrialEndsAt > now) {
+          await propagateOwnerTrialToSalons(salonIds, ownerTrialEndsAt);
+        }
         await syncSalonsInheritedPlan(salonIds, target);
         return NextResponse.json({
           ok: true,
           synced: salonIds.length,
           inheritedPlan: target,
+          trialApplied: ownerTrialEndsAt > now ? ownerTrialEndsAt : null,
         });
       }
       case "notes": {

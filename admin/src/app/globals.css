@@ -37,6 +37,66 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* ───── Prose styling pour pages légales ───── */
+.prose-legal h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-top: 2.5rem;
+  margin-bottom: 1rem;
+  letter-spacing: -0.01em;
+}
+.prose-legal h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-top: 1.75rem;
+  margin-bottom: 0.5rem;
+}
+.prose-legal p {
+  color: var(--color-text-muted);
+  line-height: 1.7;
+  margin-bottom: 1rem;
+}
+.prose-legal ul,
+.prose-legal ol {
+  color: var(--color-text-muted);
+  padding-left: 1.5rem;
+  margin-bottom: 1rem;
+  line-height: 1.7;
+}
+.prose-legal li {
+  margin-bottom: 0.5rem;
+}
+.prose-legal strong {
+  color: var(--color-text);
+  font-weight: 600;
+}
+.prose-legal a {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+.prose-legal a:hover {
+  color: var(--color-primary-dark);
+}
+.prose-legal table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  font-size: 0.875rem;
+}
+.prose-legal th,
+.prose-legal td {
+  border: 1px solid var(--color-border);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+.prose-legal th {
+  background-color: var(--color-surface);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
 /* Scrollbar (subtle, dark) */
 ::-webkit-scrollbar {
   width: 10px;
