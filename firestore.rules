@@ -19,6 +19,16 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == customerId;
     }
 
+    // Vrai si l'appelant est un client (a un doc /customers/{uid}) rattaché
+    // au salon ciblé. Utilisé pour donner aux clients accès en lecture aux
+    // ressources publiques d'un salon (barbiers, avis agrégés) — uniquement
+    // sur LEUR salon d'origine.
+    function isCustomerOfSalon(salonId) {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/customers/$(request.auth.uid))
+        && get(/databases/$(database)/documents/customers/$(request.auth.uid)).data.salonId == salonId;
+    }
+
     // Propriétaire d'un salon (plan Entreprise). Retourne true si l'appelant
     // est l'UID référencé par `salons.{salonId}.ownerId`.
     function isOwner(salonId) {
@@ -72,11 +82,15 @@ service cloud.firestore {
       allow list: if isAdmin();
       // Édition limitée à 3 champs côté propriétaire (name, phone) ;
       // les champs plan/salonIds/expiry restent serveur-only (admin).
+      // Édition par le propriétaire : 4 champs autorisés.
+      //   - name / phone : profil
+      //   - loyaltyMode / chainRewardThreshold : configuration fidélité chaîne
+      // Les champs plan/salonIds/expiry restent serveur-only (admin).
       allow update: if isAdmin() || (
         request.auth != null
         && request.auth.uid == uid
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-             'name', 'phone'
+             'name', 'phone', 'loyaltyMode', 'chainRewardThreshold'
            ])
       );
       allow create, delete: if false;
@@ -118,8 +132,21 @@ service cloud.firestore {
       //   - openingHours / closures → Standard+ requis
       //   - subscriptionPrice       → Pro requis
       //   - inheritedPlan / ownerId → ADMIN UNIQUEMENT (intégrité du modèle owner)
+      //   - loyaltySharedWithOwner / effectiveRewardThreshold → ADMIN ou OWNER
+      //     uniquement (dénormalisé depuis l'owner.loyaltyMode, jamais
+      //     écrit par le kiosk).
       // L'admin et le propriétaire (qui hérite Pro via Entreprise) sont
       // toujours autorisés. Le kiosque doit avoir un plan effectif compatible.
+      // SÉCURITÉ — `kioskUserIds` ne peut JAMAIS être modifié directement
+      // par un utilisateur depuis le client : on bloque l'auto-ajout qui
+      // permettait à n'importe quel auth user de devenir kiosque de
+      // n'importe quel salon. Désormais seuls l'admin et la Cloud Function
+      // `claimKioskSlot` (qui tourne avec privilèges Admin SDK et valide
+      // le code d'activation) peuvent toucher à ce champ.
+      //
+      // Le kiosque existant garde le droit de mettre à jour les autres
+      // champs (logo, horaires, push token...), mais s'il essaie de
+      // modifier kioskUserIds en self-service la rule rejette.
       allow update: if isAdmin()
         || (
           isOwner(salonId)
@@ -127,7 +154,11 @@ service cloud.firestore {
         )
         || (
           isSalonKiosk(salonId)
-          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['inheritedPlan', 'ownerId'])
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+               'inheritedPlan', 'ownerId',
+               'loyaltySharedWithOwner', 'effectiveRewardThreshold',
+               'kioskUserIds', 'activatedAt'
+             ])
           && (
             !request.resource.data.diff(resource.data).affectedKeys().hasAny(['openingHours', 'closures'])
             || planAllows(salonId, ['standard', 'pro'])
@@ -136,15 +167,6 @@ service cloud.firestore {
             !request.resource.data.diff(resource.data).affectedKeys().hasAny(['subscriptionPrice'])
             || planAllows(salonId, ['pro'])
           )
-        )
-        || (
-          request.auth != null
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-               'kioskUserIds', 'activatedAt', 'kioskPushToken', 'kioskPushTokenUpdatedAt'
-             ])
-          && request.resource.data.kioskUserIds.hasAll(resource.data.kioskUserIds)
-          && request.resource.data.kioskUserIds.size() <= resource.data.kioskUserIds.size() + 1
-          && request.auth.uid in request.resource.data.kioskUserIds
         );
       allow create, delete: if false;
 
@@ -232,10 +254,26 @@ service cloud.firestore {
         || (request.auth != null && isSalonKiosk(resource.data.salonId))
         || (request.auth != null && isOwner(resource.data.salonId))
         || (request.auth != null && request.auth.uid == resource.data.customerId);
+      // Création autorisée si :
+      //  - Le kiosk appartient au salon où on enregistre la coupe
+      //  - ET soit le salon scanneur == salon d'origine du client
+      //    SOIT cross-salon partagé : les deux salons partagent le même
+      //    owner ET le salon scanneur a loyaltySharedWithOwner=true.
       allow create: if request.auth != null
         && isSalonKiosk(request.resource.data.salonId)
-        && request.resource.data.salonId ==
-           get(/databases/$(database)/documents/customers/$(request.resource.data.customerId)).data.salonId;
+        && (
+          // Cas standard : même salon que le client
+          request.resource.data.salonId ==
+             get(/databases/$(database)/documents/customers/$(request.resource.data.customerId)).data.salonId
+          ||
+          // Cas cross-salon partagé : même chaîne + shared activé
+          (
+            get(/databases/$(database)/documents/salons/$(request.resource.data.salonId)).data.loyaltySharedWithOwner == true
+            && get(/databases/$(database)/documents/salons/$(request.resource.data.salonId)).data.ownerId != null
+            && get(/databases/$(database)/documents/salons/$(request.resource.data.salonId)).data.ownerId ==
+               get(/databases/$(database)/documents/salons/$(get(/databases/$(database)/documents/customers/$(request.resource.data.customerId)).data.salonId)).data.ownerId
+          )
+        );
       allow update, delete: if false;
     }
 
@@ -333,22 +371,92 @@ service cloud.firestore {
         );
     }
 
+    // ───────── Service à domicile (homeServiceRequests) ─────
+    //
+    // Un client commande un coiffeur précis pour qu'il vienne chez lui.
+    // Le salon confirme, contre-propose ou refuse. Une fois confirmé,
+    // les détails se gèrent via la messagerie existante.
+    //
+    // Plan gating : feature réservée au plan Pro (côté salon).
+    match /homeServiceRequests/{id} {
+      allow get: if isAdmin()
+        || isCustomer(resource.data.customerId)
+        || isSalonKiosk(resource.data.salonId)
+        || isOwner(resource.data.salonId);
+      allow list: if isAdmin()
+        || (request.auth != null && (
+            request.auth.uid == resource.data.customerId
+            || isSalonKiosk(resource.data.salonId)
+            || isOwner(resource.data.salonId)
+        ));
+      // Création par le client uniquement (auth.uid == customerId),
+      // status forcé à 'pending', salon doit être en Pro effectif.
+      allow create: if request.auth != null
+        && request.auth.uid == request.resource.data.customerId
+        && request.resource.data.status == 'pending'
+        && planAllows(request.resource.data.salonId, ['pro']);
+      // Update : client peut annuler / accepter contre-proposition,
+      //          salon peut confirmer / contre-proposer / refuser /
+      //          marquer comme completed.
+      // Verrous d'immutabilité : customerId / salonId / createdAt figés.
+      allow update: if request.auth != null
+        && planAllows(resource.data.salonId, ['pro'])
+        && request.resource.data.customerId == resource.data.customerId
+        && request.resource.data.salonId == resource.data.salonId
+        && request.resource.data.createdAt == resource.data.createdAt
+        && (
+          request.auth.uid == resource.data.customerId
+          || isSalonKiosk(resource.data.salonId)
+        );
+      // Pas de delete (historique conservé).
+    }
+
     // ───────── Barbiers ─────────
     match /barbers/{barberId} {
+      // Lecture : admin / kiosk / owner du salon, OU client rattaché à ce salon
+      // (pour la page "Coiffeurs de mon salon" côté client).
       allow get: if request.auth != null
         && (
           isAdmin()
           || isSalonKiosk(resource.data.salonId)
           || isOwner(resource.data.salonId)
+          || isCustomerOfSalon(resource.data.salonId)
         );
       allow list: if isAdmin()
         || (request.auth != null && isSalonKiosk(resource.data.salonId))
-        || (request.auth != null && isOwner(resource.data.salonId));
-      // Le propriétaire peut créer/déplacer un barbier entre ses salons.
-      allow create, update: if request.auth != null
+        || (request.auth != null && isOwner(resource.data.salonId))
+        || (request.auth != null && isCustomerOfSalon(resource.data.salonId));
+      // Création : kiosk OU owner du salon ciblé.
+      allow create: if request.auth != null
         && (
           isSalonKiosk(request.resource.data.salonId)
           || isOwner(request.resource.data.salonId)
+        );
+      // Update — deux cas :
+      //   1) Édition simple (nom, photo, active) sans changement de salon
+      //      → kiosk ou owner du salon courant.
+      //   2) Transfert entre salons (changement de salonId)
+      //      → réservé à l'owner : il doit posséder le salon SOURCE
+      //        ET le salon DESTINATION. isOwner(x) vérifie
+      //        auth.uid == salons.{x}.ownerId, donc si les deux passent
+      //        pour le même request.auth, les deux salons partagent
+      //        forcément le même ownerId.
+      //      Un kiosk ne peut jamais déplacer un barbier (il ne contrôle
+      //      qu'un seul salon par essence).
+      allow update: if request.auth != null
+        && (
+          (
+            request.resource.data.salonId == resource.data.salonId
+            && (
+              isSalonKiosk(resource.data.salonId)
+              || isOwner(resource.data.salonId)
+            )
+          )
+          || (
+            request.resource.data.salonId != resource.data.salonId
+            && isOwner(resource.data.salonId)
+            && isOwner(request.resource.data.salonId)
+          )
         );
     }
 
@@ -370,12 +478,14 @@ service cloud.firestore {
           || isCustomer(resource.data.customerId)
           || isSalonKiosk(resource.data.salonId)
           || isOwner(resource.data.salonId)
+          || isCustomerOfSalon(resource.data.salonId)
         );
       allow list: if isAdmin()
         || (request.auth != null && (
             request.auth.uid == resource.data.customerId
             || isSalonKiosk(resource.data.salonId)
             || isOwner(resource.data.salonId)
+            || isCustomerOfSalon(resource.data.salonId)
         ));
       // Création — verrous d'intégrité :
       //  - L'auteur (auth.uid) doit correspondre au customerId de l'avis

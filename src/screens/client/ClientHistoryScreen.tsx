@@ -14,6 +14,7 @@ import {
   isCutEligibleForReview,
 } from '@/services/reviews';
 import { useT, getCurrentLocale, localeToBcp47 } from '@/i18n';
+import { humanizeError } from '@/lib/humanizeError';
 import { colors, spacing, typography, radius } from '@/theme';
 import { Cut, CutReview, REVIEW_EDIT_WINDOW_MS } from '@/types';
 import { RootStackParamList } from '@/navigation/types';
@@ -70,7 +71,7 @@ export function ClientHistoryScreen() {
       });
       setReviewTarget(null);
     } catch (e: any) {
-      Alert.alert(t('common.error'), e?.message || String(e));
+      Alert.alert(t('common.error'), humanizeError(e, t));
     } finally {
       setReviewSubmitting(false);
     }

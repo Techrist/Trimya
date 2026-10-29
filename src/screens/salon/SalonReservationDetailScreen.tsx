@@ -20,6 +20,7 @@ import {
 } from '@/services/reservations';
 import { getCustomer } from '@/services/customers';
 import { useT } from '@/i18n';
+import { humanizeError } from '@/lib/humanizeError';
 import { colors, radius, spacing, typography } from '@/theme';
 import { Customer, Reservation } from '@/types';
 import { ReservationsStackParamList } from '@/navigation/types';
@@ -69,7 +70,7 @@ export function SalonReservationDetailScreen() {
       });
       await reload();
     } catch (e: any) {
-      Alert.alert(t('common.error'), e.message || t('salon.reservation.errorAction'));
+      Alert.alert(t('common.error'), humanizeError(e, t));
     }
   };
 
@@ -110,7 +111,7 @@ export function SalonReservationDetailScreen() {
       });
       await reload();
     } catch (e: any) {
-      Alert.alert(t('common.error'), e.message || t('salon.reservation.errorAction'));
+      Alert.alert(t('common.error'), humanizeError(e, t));
     }
   };
 

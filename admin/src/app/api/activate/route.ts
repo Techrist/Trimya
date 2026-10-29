@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
+import { logServerError } from "@/lib/api-errors";
 
 /**
  * Endpoint utilisé par l'app mobile lors de l'activation d'un kiosque.
@@ -109,15 +110,22 @@ export async function POST(req: NextRequest) {
       salon: result.salon,
     });
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : "unknown_error";
+    logServerError("activate", e);
+    const raw = e instanceof Error ? e.message : "";
+    // Codes métier déjà sûrs côté activation : on les conserve tels quels
+    // car ils sont utilisés par l'app mobile pour afficher des messages
+    // précis (ex: "Code déjà utilisé"). Toute autre erreur tombe sur
+    // `internal_error` opaque pour éviter les fuites.
+    const known = ["invalid_code", "code_already_used", "salon_not_found", "salon_disabled"];
+    const out = known.includes(raw) ? raw : "internal_error";
     const status =
-      msg === "invalid_code" || msg === "code_already_used"
+      out === "invalid_code" || out === "code_already_used"
         ? 400
-        : msg === "salon_not_found"
+        : out === "salon_not_found"
           ? 404
-          : msg === "salon_disabled"
+          : out === "salon_disabled"
             ? 403
             : 500;
-    return NextResponse.json({ error: msg }, { status });
+    return NextResponse.json({ error: out }, { status });
   }
 }

@@ -31,13 +31,19 @@ export async function findCustomerByPhone(
 export async function createCustomer(input: {
   id: string;
   phone: string;
+  /** Prénom (affiché dans les greetings, listings, etc.) */
   name?: string;
+  /** Nom de famille (optionnel à l'inscription) */
+  lastName?: string;
+  /** Email (optionnel à l'inscription, utile pour reçus / récupération) */
+  email?: string;
   salonId: string;
 }): Promise<Customer> {
+  // On ne pose que les champs avec valeur non-vide pour ne pas écraser
+  // avec des `undefined` côté Firestore.
   const customer: Customer = {
     id: input.id,
     phone: input.phone,
-    name: input.name,
     salonId: input.salonId,
     currentCount: 0,
     totalCuts: 0,
@@ -45,6 +51,9 @@ export async function createCustomer(input: {
     createdAt: Date.now(),
     vip: false,
     notes: '',
+    ...(input.name ? { name: input.name } : {}),
+    ...(input.lastName ? { lastName: input.lastName } : {}),
+    ...(input.email ? { email: input.email } : {}),
   };
   await setDoc(doc(db, 'customers', input.id), customer);
   return customer;
@@ -129,6 +138,19 @@ export async function setCustomerPhoto(
 }
 
 /**
+ * Met à jour le numéro de téléphone du client après une vérification
+ * SMS réussie (cf. confirmPhoneChange dans services/auth.ts).
+ * À appeler UNIQUEMENT après que Firebase Auth a accepté le changement,
+ * sinon le doc Firestore devient incohérent avec auth.currentUser.phoneNumber.
+ */
+export async function setCustomerPhone(
+  customerId: string,
+  newPhoneE164: string,
+): Promise<void> {
+  await updateDoc(doc(db, 'customers', customerId), { phone: newPhoneE164 });
+}
+
+/**
  * Met à jour les informations personnelles : email, date de naissance,
  * préférences capillaires. Tous les champs sont optionnels et `null` efface
  * explicitement la valeur côté Firestore.
@@ -136,6 +158,8 @@ export async function setCustomerPhoto(
 export async function updateCustomerPersonalInfo(
   customerId: string,
   updates: {
+    /** Nom de famille — distinct du prénom stocké dans `name`. */
+    lastName?: string | null;
     email?: string | null;
     birthdate?: string | null; // ISO YYYY-MM-DD
     preferences?: {
@@ -147,6 +171,7 @@ export async function updateCustomerPersonalInfo(
   },
 ): Promise<void> {
   const patch: Record<string, unknown> = {};
+  if (updates.lastName !== undefined) patch.lastName = updates.lastName ?? null;
   if (updates.email !== undefined) patch.email = updates.email ?? null;
   if (updates.birthdate !== undefined) patch.birthdate = updates.birthdate ?? null;
   if (updates.preferences) {

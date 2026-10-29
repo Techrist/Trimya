@@ -386,3 +386,14 @@ export function isOwnerEnterpriseActive(owner: OwnerPlanShape): boolean {
   if (!owner.planExpiresAt || owner.planExpiresAt === 0) return true;
   return owner.planExpiresAt > Date.now();
 }
+
+/** True si l'owner est en essai Entreprise Pro actif (trial accordé par l'admin). */
+export function isOwnerTrialActive(owner: { trialEndsAt?: number }): boolean {
+  return !!owner.trialEndsAt && owner.trialEndsAt > Date.now();
+}
+
+/** Nombre de jours restants à l'essai owner (0 si pas/plus d'essai). */
+export function ownerTrialDaysLeft(owner: { trialEndsAt?: number }): number {
+  if (!owner.trialEndsAt) return 0;
+  return Math.max(0, Math.ceil((owner.trialEndsAt - Date.now()) / DAY_MS));
+}

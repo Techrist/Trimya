@@ -6,6 +6,7 @@ import {
   query,
   where,
   getDocs,
+  writeBatch,
 } from 'firebase/firestore';
 import {
   signInWithEmailAndPassword,
@@ -109,4 +110,52 @@ export async function changeOwnerPassword(newPassword: string): Promise<void> {
     throw new Error('Mot de passe trop court (8 caractères minimum).');
   }
   await updatePassword(auth.currentUser, newPassword);
+}
+
+/**
+ * Configure la fidélité partagée sur la chaîne du propriétaire :
+ *  1. Met à jour le doc owner (loyaltyMode + chainRewardThreshold)
+ *  2. Propage la dénormalisation sur chaque salon de la chaîne :
+ *     - loyaltySharedWithOwner = (mode === 'shared')
+ *     - effectiveRewardThreshold = chainRewardThreshold si shared, sinon
+ *       salon.rewardThreshold ?? 4
+ *
+ * Le tout dans une writeBatch atomique pour garantir la cohérence
+ * (soit tous les écrits passent, soit aucun).
+ */
+export async function setOwnerLoyalty(
+  ownerId: string,
+  options: {
+    mode: 'shared' | 'blocked';
+    chainRewardThreshold?: number;
+  },
+): Promise<void> {
+  const shared = options.mode === 'shared';
+  const chainThreshold = Math.max(
+    1,
+    Math.min(20, Math.round(options.chainRewardThreshold ?? 4)),
+  );
+
+  const batch = writeBatch(db);
+
+  // 1) Owner doc
+  batch.update(doc(db, 'owners', ownerId), {
+    loyaltyMode: options.mode,
+    chainRewardThreshold: chainThreshold,
+  });
+
+  // 2) Tous les salons de l'owner
+  const salonsSnap = await getDocs(
+    query(collection(db, 'salons'), where('ownerId', '==', ownerId)),
+  );
+  for (const s of salonsSnap.docs) {
+    const data = s.data() as Partial<Salon>;
+    const salonOwnThreshold = data.rewardThreshold ?? 4;
+    batch.update(doc(db, 'salons', s.id), {
+      loyaltySharedWithOwner: shared,
+      effectiveRewardThreshold: shared ? chainThreshold : salonOwnThreshold,
+    });
+  }
+
+  await batch.commit();
 }

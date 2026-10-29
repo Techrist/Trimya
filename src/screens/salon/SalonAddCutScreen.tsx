@@ -31,8 +31,10 @@ import { subscribeCustomer } from '@/services/customers';
 import { useApp } from '@/contexts/AppContext';
 import { formatPrice, parsePriceInput } from '@/utils/currency';
 import { useT } from '@/i18n';
+import { humanizeError } from '@/lib/humanizeError';
 import { colors, radius, spacing, typography, REWARD_THRESHOLD } from '@/theme';
-import { Customer, ScanResult, Barber } from '@/types';
+import { Customer, ScanResult, Barber, Salon, getSalonRewardThreshold } from '@/types';
+import { subscribeSalon } from '@/services/salons';
 import { ScannerStackParamList } from '@/navigation/types';
 
 type Nav = NativeStackNavigationProp<ScannerStackParamList, 'AddCut'>;
@@ -48,11 +50,15 @@ export function SalonAddCutScreen() {
   const { t } = useT();
 
   const [customer, setCustomer] = useState<Customer | null>(null);
+  const [salon, setSalon] = useState<Salon | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<ScanResult | null>(null);
   const [needsMigration, setNeedsMigration] = useState(false);
   const [migrating, setMigrating] = useState(false);
+
+  // Seuil dynamique du salon scanneur (4 par défaut, surcharge owner possible).
+  const rewardThreshold = getSalonRewardThreshold(salon, REWARD_THRESHOLD);
 
   const [barbers, setBarbers] = useState<Barber[]>([]);
   const [selectedBarberId, setSelectedBarberId] = useState<string | null>(null);
@@ -72,7 +78,7 @@ export function SalonAddCutScreen() {
         setNeedsMigration(false);
       }
     } catch (e: any) {
-      setError(e.message || 'Erreur de chargement.');
+      setError(humanizeError(e, t));
     }
   };
 
@@ -91,7 +97,7 @@ export function SalonAddCutScreen() {
     } catch (e: any) {
       Alert.alert(
         t('salon.migration.errorTitle'),
-        e.message || t('common.error'),
+        humanizeError(e, t),
       );
       setMigrating(false);
     }
@@ -143,6 +149,12 @@ export function SalonAddCutScreen() {
     return unsub;
   }, [salonId]);
 
+  // Souscris au salon pour avoir son seuil de récompense dynamique
+  useEffect(() => {
+    if (!salonId) return;
+    return subscribeSalon(salonId, setSalon);
+  }, [salonId]);
+
   useEffect(() => {
     AsyncStorage.getItem(LAST_PRICE_KEY).then((v) => {
       if (v && !priceInput) setPriceInput(v);
@@ -150,7 +162,7 @@ export function SalonAddCutScreen() {
   }, []);
 
   const isReward = customer
-    ? customer.currentCount >= REWARD_THRESHOLD
+    ? customer.currentCount >= rewardThreshold
     : false;
 
   const selectedBarber = useMemo(
@@ -196,7 +208,7 @@ export function SalonAddCutScreen() {
       setResult(r);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e: any) {
-      Alert.alert(t('common.error'), e.message || t('salon.cut.errorAdd'));
+      Alert.alert(t('common.error'), humanizeError(e, t));
     } finally {
       setSubmitting(false);
     }
@@ -306,7 +318,7 @@ export function SalonAddCutScreen() {
           {result.wasReward ? t('salon.cut.successReward') : t('salon.cut.successAdded')}
         </Text>
         <Text style={styles.successSub}>
-          {customer.name || 'Client'} · {result.newCount}/{REWARD_THRESHOLD}
+          {customer.name || 'Client'} · {result.newCount}/{rewardThreshold}
         </Text>
 
         {!result.wasReward && (
@@ -350,7 +362,10 @@ export function SalonAddCutScreen() {
       </View>
 
       <Card style={styles.progressCard} elevated>
-        <ProgressIndicator count={customer.currentCount} />
+        <ProgressIndicator
+          count={customer.currentCount}
+          threshold={rewardThreshold}
+        />
       </Card>
 
       {isReward ? (

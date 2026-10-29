@@ -57,6 +57,12 @@ export async function submitReview(p: SubmitReviewParams): Promise<CutReview> {
   if (!meUid) {
     throw new Error('Non authentifié — reconnecte-toi.');
   }
+  // Défense en profondeur : on refuse côté client toute tentative de noter
+  // la coupe d'un autre client. La rule Firestore vérifie déjà ça mais on
+  // évite un round-trip + un message d'erreur générique pour l'utilisateur.
+  if (meUid !== p.cut.customerId) {
+    throw new Error('Tu ne peux noter que tes propres coupes.');
+  }
 
   // Fallback : si la rule `get` refuse pour un doc inexistant (rules pas
   // encore déployées en prod), on traite comme "n'existe pas" et on tente

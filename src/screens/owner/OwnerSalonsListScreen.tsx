@@ -2,7 +2,14 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable, FlatList } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Store, ChevronRight, Ban, CheckCircle2, Clock } from 'lucide-react-native';
+import {
+  Store,
+  ChevronRight,
+  Ban,
+  CheckCircle2,
+  Clock,
+  ArrowRightLeft,
+} from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { Card } from '@/components/Card';
 import { Avatar } from '@/components/Avatar';
@@ -11,7 +18,7 @@ import { useApp } from '@/contexts/AppContext';
 import { useT } from '@/i18n';
 import { colors, radius, spacing, typography } from '@/theme';
 import { Salon } from '@/types';
-import { PLANS } from '@/lib/plans';
+import { PLANS, isOwnerEnterpriseActive } from '@/lib/plans';
 import { OwnerSalonsStackParamList } from '@/navigation/types';
 
 type Nav = NativeStackNavigationProp<OwnerSalonsStackParamList, 'OwnerSalonsList'>;
@@ -23,6 +30,11 @@ export function OwnerSalonsListScreen() {
   const { t } = useT();
 
   const limit = PLANS.enterprise.limits.maxSalons ?? 5;
+  const enterprise = owner ? isOwnerEnterpriseActive(owner) : false;
+  // Le bouton "Transférer un coiffeur" n'a de sens qu'à partir de 2 salons
+  // sur un plan Entreprise actif (la rule serveur refusera de toute façon
+  // mais on évite d'exposer un CTA mort).
+  const canShowTransfer = enterprise && salons.length >= 2;
 
   return (
     <Screen padded={false}>
@@ -31,6 +43,30 @@ export function OwnerSalonsListScreen() {
         <Text style={styles.subtitle}>
           {t('owner.salons.countOfMax', { count: salons.length, max: limit })}
         </Text>
+
+        {canShowTransfer ? (
+          <Pressable
+            onPress={() => nav.navigate('OwnerBarberTransfer')}
+            style={styles.transferCta}
+          >
+            <View style={styles.transferIconWrap}>
+              <ArrowRightLeft
+                color={colors.primary}
+                size={18}
+                strokeWidth={2.2}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.transferCtaTitle}>
+                {t('owner.salons.transferCta.title')}
+              </Text>
+              <Text style={styles.transferCtaText}>
+                {t('owner.salons.transferCta.text')}
+              </Text>
+            </View>
+            <ChevronRight color={colors.textDim} size={18} strokeWidth={2} />
+          </Pressable>
+        ) : null}
       </View>
 
       {loading ? (
@@ -127,6 +163,35 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textMuted,
     marginTop: spacing.xs,
+  },
+  transferCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    marginTop: spacing.md,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 87, 34, 0.3)',
+  },
+  transferIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 87, 34, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  transferCtaTitle: {
+    ...typography.bodyBold,
+    color: colors.text,
+  },
+  transferCtaText: {
+    ...typography.caption,
+    color: colors.textMuted,
+    marginTop: 2,
   },
   list: {
     padding: spacing.lg,

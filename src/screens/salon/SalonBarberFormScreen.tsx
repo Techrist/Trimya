@@ -26,6 +26,7 @@ import {
   pickBarberPhoto,
 } from '@/services/barbers';
 import { useT } from '@/i18n';
+import { humanizeError } from '@/lib/humanizeError';
 import { colors, radius, spacing, typography } from '@/theme';
 import { ProfileStackParamList } from '@/navigation/types';
 
@@ -64,7 +65,7 @@ export function SalonBarberFormScreen() {
       const data = await pickBarberPhoto();
       if (data) setPhoto(data);
     } catch (e: any) {
-      Alert.alert(t('common.error'), e.message || t('salon.barber.errorPick'));
+      Alert.alert(t('common.error'), humanizeError(e, t));
     }
   };
 
@@ -84,7 +85,7 @@ export function SalonBarberFormScreen() {
       }
       nav.goBack();
     } catch (e: any) {
-      Alert.alert(t('common.error'), e.message || t('salon.barber.errorSave'));
+      Alert.alert(t('common.error'), humanizeError(e, t));
     } finally {
       setSubmitting(false);
     }

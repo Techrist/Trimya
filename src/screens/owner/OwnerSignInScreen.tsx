@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, Alert } from 'react-native';
 import { useNavigation, CommonActions } from '@react-navigation/native';
+import { navigateToRoot } from '@/navigation/navigateToRoot';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Mail, Lock, Building2 } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { LegalLinks } from '@/components/LegalLinks';
+import { humanizeError } from '@/lib/humanizeError';
+import { useScreenCapturePrevention } from '@/hooks/useScreenCapturePrevention';
 import { signInAsOwner } from '@/services/owners';
 import { useApp } from '@/contexts/AppContext';
 import { useT } from '@/i18n';
@@ -23,6 +27,7 @@ export function OwnerSignInScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  useScreenCapturePrevention();
 
   const handleSignIn = async () => {
     setError(null);
@@ -37,14 +42,10 @@ export function OwnerSignInScreen() {
         }),
       );
     } catch (e: any) {
-      const msg = e?.message ?? '';
-      if (msg.includes('auth/invalid-credential')) {
-        setError(t('owner.signin.invalidCredentials'));
-      } else if (msg.includes('auth/too-many-requests')) {
-        setError(t('owner.signin.tooManyAttempts'));
-      } else {
-        setError(msg || t('common.error'));
-      }
+      // humanizeError gère déjà tous les codes Firebase Auth en messages
+      // français rassurants (auth/invalid-credential, too-many-requests,
+      // network, etc.) — plus besoin de mapping manuel ici.
+      setError(humanizeError(e, t));
     } finally {
       setLoading(false);
     }
@@ -52,12 +53,7 @@ export function OwnerSignInScreen() {
 
   const handleBack = async () => {
     await clearMode();
-    nav.dispatch(
-      CommonActions.reset({
-        index: 0,
-        routes: [{ name: 'RoleSelection' }],
-      }),
-    );
+    navigateToRoot(nav);
   };
 
   return (
@@ -124,6 +120,8 @@ export function OwnerSignInScreen() {
       </Card>
 
       <Text style={styles.legal}>{t('owner.signin.legal')}</Text>
+
+      <LegalLinks variant="inline" />
     </Screen>
   );
 }

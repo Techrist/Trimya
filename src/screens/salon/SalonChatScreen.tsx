@@ -9,6 +9,7 @@ import { ChatView } from '@/components/ChatView';
 import { Avatar } from '@/components/Avatar';
 import { LockedFeature } from '@/components/LockedFeature';
 import { useT } from '@/i18n';
+import { humanizeError } from '@/lib/humanizeError';
 import { useApp } from '@/contexts/AppContext';
 import { useSalonPlan } from '@/hooks/useSalonPlan';
 import { getCustomer } from '@/services/customers';
@@ -86,7 +87,7 @@ export function SalonChatScreen() {
         senderId: me.uid,
       });
     } catch (e: any) {
-      Alert.alert(t('common.error'), e.message || t('salon.chat.errorSend'));
+      Alert.alert(t('common.error'), humanizeError(e, t));
     }
   };
 

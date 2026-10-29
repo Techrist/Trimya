@@ -9,6 +9,7 @@ import {
   Linking,
 } from 'react-native';
 import { useNavigation, CommonActions } from '@react-navigation/native';
+import { navigateToRoot } from '@/navigation/navigateToRoot';
 import {
   LogOut,
   Mail,
@@ -20,11 +21,15 @@ import {
   Crown,
   KeyRound,
   MessageCircle,
+  Hourglass,
 } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { LanguagePicker } from '@/components/LanguagePicker';
+import { LegalLinks } from '@/components/LegalLinks';
+import { humanizeError } from '@/lib/humanizeError';
+import { LoyaltyModeEditor } from '@/components/LoyaltyModeEditor';
 import { useApp } from '@/contexts/AppContext';
 import { useOwner } from '@/hooks/useOwner';
 import {
@@ -36,6 +41,8 @@ import { storage } from '@/services/storage';
 import {
   PLANS,
   isOwnerEnterpriseActive,
+  isOwnerTrialActive,
+  ownerTrialDaysLeft,
   planExpiresInDays,
   formatPlanPrice,
   getPlanLabel,
@@ -50,7 +57,7 @@ const CONTACT_EMAIL = 'tenimkoc@gmail.com';
 export function OwnerProfileScreen() {
   const nav = useNavigation();
   const { ownerId, clearMode } = useApp();
-  const { owner } = useOwner(ownerId);
+  const { owner, salons } = useOwner(ownerId);
   const { t } = useT();
 
   const [editName, setEditName] = useState(false);
@@ -74,6 +81,8 @@ export function OwnerProfileScreen() {
   }
 
   const enterprise = isOwnerEnterpriseActive(owner);
+  const onTrial = isOwnerTrialActive(owner);
+  const trialLeft = ownerTrialDaysLeft(owner);
   const expiresInDays = planExpiresInDays(owner);
 
   const handleStartEditName = () => {
@@ -91,7 +100,7 @@ export function OwnerProfileScreen() {
       await updateOwnerProfile(owner.id, { name: v });
       setEditName(false);
     } catch (e: any) {
-      Alert.alert(t('common.error'), e.message);
+      Alert.alert(t('common.error'), humanizeError(e, t));
     } finally {
       setSavingName(false);
     }
@@ -107,7 +116,7 @@ export function OwnerProfileScreen() {
       await updateOwnerProfile(owner.id, { phone: phoneDraft.trim() || null });
       setEditPhone(false);
     } catch (e: any) {
-      Alert.alert(t('common.error'), e.message);
+      Alert.alert(t('common.error'), humanizeError(e, t));
     } finally {
       setSavingPhone(false);
     }
@@ -126,7 +135,7 @@ export function OwnerProfileScreen() {
       setShowPasswordForm(false);
       Alert.alert(t('common.done'), t('owner.profile.passwordChanged'));
     } catch (e: any) {
-      Alert.alert(t('common.error'), e.message);
+      Alert.alert(t('common.error'), humanizeError(e, t));
     } finally {
       setSavingPassword(false);
     }
@@ -162,12 +171,7 @@ export function OwnerProfileScreen() {
           await signOut();
           await storage.resetAll();
           await clearMode();
-          nav.dispatch(
-            CommonActions.reset({
-              index: 0,
-              routes: [{ name: 'RoleSelection' as never }],
-            }),
-          );
+          navigateToRoot(nav);
         },
       },
     ]);
@@ -220,6 +224,20 @@ export function OwnerProfileScreen() {
             PLANS[(owner.plan as OwnerPlanId) || 'enterprise_standard'],
           )}
         </Text>
+
+        {onTrial ? (
+          <View style={styles.trialBanner}>
+            <Hourglass color={colors.black} size={14} strokeWidth={2.4} />
+            <Text style={styles.trialBannerText}>
+              {t(
+                trialLeft > 1
+                  ? 'owner.profile.trialBannerPlural'
+                  : 'owner.profile.trialBanner',
+                { count: trialLeft },
+              )}
+            </Text>
+          </View>
+        ) : null}
 
         {enterprise && expiresInDays !== null && expiresInDays <= 14 ? (
           <View style={{ marginTop: spacing.md }}>
@@ -389,8 +407,26 @@ export function OwnerProfileScreen() {
         </Pressable>
       </Card>
 
+      {/* Fidélité chaîne — affiché uniquement si l'owner a plusieurs salons */}
+      {salons.length > 1 ? (
+        <>
+          <Text style={styles.sectionTitle}>{t('loyalty.owner.sectionTitle')}</Text>
+          <LoyaltyModeEditor
+            ownerId={owner.id}
+            currentMode={owner.loyaltyMode ?? 'blocked'}
+            currentChainThreshold={owner.chainRewardThreshold ?? 4}
+            salonsCount={salons.length}
+          />
+        </>
+      ) : null}
+
       <Text style={styles.sectionTitle}>{t('client.profile.language')}</Text>
       <LanguagePicker />
+
+      <Text style={styles.sectionTitle}>{t('legal.section')}</Text>
+      <Card>
+        <LegalLinks variant="list" />
+      </Card>
 
       <Pressable onPress={handleSignOut} style={styles.signOutBtn}>
         <LogOut color={colors.danger} size={18} strokeWidth={2.2} />
@@ -441,6 +477,24 @@ const styles = StyleSheet.create({
     ...typography.bodyBold,
     color: colors.primary,
     marginTop: spacing.sm,
+  },
+  trialBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+    backgroundColor: colors.accent,
+  },
+  trialBannerText: {
+    ...typography.caption,
+    color: colors.black,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
   sectionTitle: {
     ...typography.caption,

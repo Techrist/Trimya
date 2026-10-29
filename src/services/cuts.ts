@@ -6,6 +6,7 @@ import {
   where,
   onSnapshot,
   getDocs,
+  getDoc,
 } from 'firebase/firestore';
 import { getFunctions, httpsCallable, type Functions } from 'firebase/functions';
 import { db } from './firebase';
@@ -19,6 +20,35 @@ function getFns(): Functions {
     functionsInstance = getFunctions(getApp(), 'europe-west1');
   }
   return functionsInstance;
+}
+
+/**
+ * Charge un salon de façon défensive (renvoie null si introuvable ou erreur de
+ * permissions). Utilisé pour lire ownerId / rewardThreshold avant la transaction
+ * d'addCut sans planter si quoi que ce soit échoue.
+ */
+async function tx_get_salon_safe(salonId: string): Promise<
+  | {
+      ownerId?: string;
+      rewardThreshold?: number;
+      effectiveRewardThreshold?: number;
+      loyaltySharedWithOwner?: boolean;
+    }
+  | null
+> {
+  try {
+    const snap = await getDoc(doc(db, 'salons', salonId));
+    if (!snap.exists()) return null;
+    const d = snap.data() as Record<string, unknown>;
+    return {
+      ownerId: d.ownerId as string | undefined,
+      rewardThreshold: d.rewardThreshold as number | undefined,
+      effectiveRewardThreshold: d.effectiveRewardThreshold as number | undefined,
+      loyaltySharedWithOwner: d.loyaltySharedWithOwner as boolean | undefined,
+    };
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -83,7 +113,13 @@ export async function addCut(params: {
       rewardUnlocked: r.rewardUnlocked,
     };
   } catch (e: unknown) {
-    // Repli sur transaction client si la fonction n'est pas dispo.
+    // SÉCURITÉ — En PRODUCTION on refuse strictement de retomber sur la
+    // transaction client : elle n'a ni rate-limit, ni anti-replay renforcé,
+    // ni quota par salon, et un attaquant pourrait DoS la Cloud Function
+    // exprès pour forcer ce fallback moins sécurisé. On laisse le repli
+    // uniquement en dev (__DEV__ = true dans Expo Go / dev client) pour
+    // qu'on puisse continuer à tester localement sans déploiement des
+    // fonctions.
     const code = (e as { code?: string }).code ?? '';
     const fallbackOnDeploy =
       code === 'functions/not-found' ||
@@ -91,11 +127,22 @@ export async function addCut(params: {
       code === 'functions/internal' ||
       code === 'not-found' ||
       code === 'unavailable';
-    if (!fallbackOnDeploy) throw e;
+    if (!__DEV__ || !fallbackOnDeploy) throw e;
   }
 
   const customerRef = doc(db, 'customers', customerId);
   const cutRef = doc(collection(db, 'cuts'));
+
+  // Pré-charge le salon scanneur pour récupérer son seuil de récompense.
+  // Lecture hors transaction OK : la valeur change rarement et seuls
+  // les écritures critiques (counters) sont dans la transaction.
+  const scanningSalonSnap = await tx_get_salon_safe(salonId);
+  const salonRewardThreshold =
+    scanningSalonSnap?.effectiveRewardThreshold ??
+    scanningSalonSnap?.rewardThreshold ??
+    REWARD_THRESHOLD;
+  const scanningSalonOwnerId = scanningSalonSnap?.ownerId;
+  const scanningSalonLoyaltyShared = !!scanningSalonSnap?.loyaltySharedWithOwner;
 
   return runTransaction(db, async (tx) => {
     const snap = await tx.get(customerRef);
@@ -112,8 +159,19 @@ export async function addCut(params: {
       subscriptionExpiresAt?: number;
     };
 
+    // ─── Vérification salon : strict OU partagé sur la chaîne ────
     if (data.salonId !== salonId) {
-      throw new Error('Ce client appartient à un autre salon.');
+      // Cross-salon : on autorise uniquement si le salon scanneur partage
+      // la même chaîne (même owner) ET que l'owner a activé la fidélité partagée.
+      // Pour cela on charge le salon d'origine du client pour comparer ownerId.
+      const homeSalon = await tx_get_salon_safe(data.salonId);
+      const sameOwner =
+        !!scanningSalonOwnerId &&
+        homeSalon?.ownerId === scanningSalonOwnerId;
+      if (!sameOwner || !scanningSalonLoyaltyShared) {
+        throw new Error('Ce client appartient à un autre salon.');
+      }
+      // OK : cross-salon shared autorisé, on continue.
     }
 
     // ─── Cas client abonné (coupes illimitées) ────────────────
@@ -162,10 +220,11 @@ export async function addCut(params: {
       };
     }
 
-    // ─── Cas standard fidélité 4/4 ─────────────────────────────
-    const isReward = data.currentCount >= REWARD_THRESHOLD;
+    // ─── Cas standard fidélité X/N ─────────────────────────────
+    // N = seuil dynamique calculé depuis le salon scanneur.
+    const isReward = data.currentCount >= salonRewardThreshold;
     const newCount = isReward ? 0 : data.currentCount + 1;
-    const rewardUnlocked = !isReward && newCount === REWARD_THRESHOLD;
+    const rewardUnlocked = !isReward && newCount === salonRewardThreshold;
 
     tx.update(customerRef, {
       currentCount: newCount,

@@ -1,5 +1,5 @@
 import { doc, runTransaction, updateDoc } from 'firebase/firestore';
-import { db } from './firebase';
+import { db, auth } from './firebase';
 import { Customer } from '@/types';
 import { getSalon } from './salons';
 
@@ -52,6 +52,17 @@ export async function clearMigrationRequest(customerId: string): Promise<void> {
 export async function acceptMigrationRequest(
   customerId: string,
 ): Promise<MigrationResult> {
+  // SÉCURITÉ — Seul le client concerné peut accepter sa propre migration.
+  // Sans ce check, n'importe quel user authentifié qui devine un customerId
+  // peut transférer un client vers un salon arbitraire (perte de fidélité).
+  // La rule Firestore le protège déjà mais on bloque tôt côté client pour
+  // un message d'erreur plus clair et un fail-fast.
+  const meUid = auth.currentUser?.uid;
+  if (!meUid) throw new Error('Pas de session active.');
+  if (meUid !== customerId) {
+    throw new Error('Tu ne peux accepter qu\'une migration pour ton propre compte.');
+  }
+
   const customerRef = doc(db, 'customers', customerId);
 
   return runTransaction(db, async (tx) => {

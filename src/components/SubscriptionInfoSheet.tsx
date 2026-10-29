@@ -41,9 +41,14 @@ export function SubscriptionInfoSheet({ visible, salon, onClose }: Props) {
   const openWhatsApp = () => {
     if (!phone) return;
     const cleanPhone = phone.replace(/[^0-9+]/g, '');
-    const text = encodeURIComponent(t('subscription.info.whatsappText'));
+    // Le message inclut le nom du salon pour que le coiffeur reconnaisse
+    // immédiatement de quel établissement on parle (utile pour les owners
+    // qui gèrent plusieurs salons depuis le même numéro WhatsApp).
+    const text = encodeURIComponent(
+      t('subscription.info.whatsappText', { name: salon?.name || '' }),
+    );
     Linking.openURL(`whatsapp://send?phone=${cleanPhone}&text=${text}`).catch(
-      () => Linking.openURL(`https://wa.me/${cleanPhone.replace(/\+/g, '')}`),
+      () => Linking.openURL(`https://wa.me/${cleanPhone.replace(/\+/g, '')}?text=${text}`),
     );
   };
 

@@ -13,6 +13,13 @@ const QR_VALIDITY_MS = 60_000;
 const CLOCK_SKEW_MS = 30_000;
 /** Délai mini entre 2 cuts pour un même client (anti double-scan). */
 const COOLDOWN_MS = 30_000;
+/**
+ * Plafond anti-fraude par salon et par minute glissante. Un salon réel
+ * dépasse rarement 30 coupes/heure (0.5/min) ; 60/min couvre largement
+ * un pic exceptionnel tout en bloquant un kiosque compromis qui essaierait
+ * de gonfler artificiellement les KPI ou la fidélité distribuée.
+ */
+const SALON_CUTS_PER_MINUTE_LIMIT = 60;
 
 interface AddCutInput {
   customerId: string;
@@ -116,19 +123,90 @@ export const addCutSecure = onCall<AddCutInput>(
       }
 
       // Le client appartient bien à ce salon ?
+      // OU cross-salon partagé : autorisé si le salon scanneur est dans la
+      // même chaîne que le salon d'origine du client ET que l'owner a activé
+      // loyaltyMode='shared' (dénormalisé via salon.loyaltySharedWithOwner).
       if (customer.salonId !== salonId) {
-        throw new HttpsError(
-          "failed-precondition",
-          "customer_belongs_to_other_salon",
-        );
+        const sharedActive =
+          (salon.loyaltySharedWithOwner as boolean | undefined) === true;
+        const scanningOwnerId = salon.ownerId as string | undefined;
+        let homeSalonOwnerId: string | undefined;
+        if (sharedActive && scanningOwnerId) {
+          const homeSalonSnap = await tx.get(
+            db.collection("salons").doc(customer.salonId as string),
+          );
+          if (homeSalonSnap.exists) {
+            const homeData = homeSalonSnap.data() ?? {};
+            homeSalonOwnerId = homeData.ownerId as string | undefined;
+          }
+        }
+        if (
+          !sharedActive ||
+          !scanningOwnerId ||
+          homeSalonOwnerId !== scanningOwnerId
+        ) {
+          throw new HttpsError(
+            "failed-precondition",
+            "customer_belongs_to_other_salon",
+          );
+        }
+        // OK : cross-salon shared autorisé, on continue.
       }
 
-      // Anti-double-scan : cooldown sur lastVisitAt
+      // Seuil de récompense effectif pour ce scan (dynamique).
+      const effectiveThreshold =
+        (salon.effectiveRewardThreshold as number | undefined) ??
+        (salon.rewardThreshold as number | undefined) ??
+        REWARD_THRESHOLD;
+
+      // ─── Anti-double-scan renforcé ─────────────────────────
+      // On combine 2 vérifications :
+      //   1) cooldown sur lastVisitAt (rapide, lit le doc déjà chargé)
+      //   2) lookup du DERNIER cut réellement créé pour ce client.
+      //      Sans ça, deux transactions parallèles très rapprochées
+      //      peuvent toutes les deux voir lastVisitAt "pas encore mis
+      //      à jour" et passer toutes les deux (race condition côté
+      //      base avant que la transaction conflict ne se déclenche).
+      //      Le check #2 lit le cut directement ce qui force Firestore
+      //      à sérialiser les écritures sur la collection cuts.
+      const now = Date.now();
       if (
         customer.lastVisitAt &&
-        Date.now() - customer.lastVisitAt < COOLDOWN_MS
+        now - (customer.lastVisitAt as number) < COOLDOWN_MS
       ) {
         throw new HttpsError("aborted", "too_soon_after_last_cut");
+      }
+      const recentCutSnap = await tx.get(
+        db
+          .collection("cuts")
+          .where("customerId", "==", customerId)
+          .orderBy("createdAt", "desc")
+          .limit(1),
+      );
+      if (!recentCutSnap.empty) {
+        const lastCut = recentCutSnap.docs[0].data();
+        if (lastCut.createdAt && now - lastCut.createdAt < COOLDOWN_MS) {
+          throw new HttpsError("aborted", "duplicate_scan_within_cooldown");
+        }
+      }
+
+      // ─── Rate-limit anti-fraude par salon ──────────────────
+      // Un kiosque malveillant ou bugué ne doit pas pouvoir créer 1000
+      // cuts/seconde pour gonfler les stats ou distribuer en masse de
+      // fausses récompenses. On compte les cuts de la dernière minute
+      // sur ce salon ; au-delà du plafond on rejette. Le rate-limit
+      // est volontairement large pour ne pas bloquer un salon en
+      // période de pointe légitime.
+      const minuteAgo = now - 60_000;
+      const recentSalonCuts = await tx.get(
+        db
+          .collection("cuts")
+          .where("salonId", "==", salonId)
+          .where("createdAt", ">", minuteAgo)
+          .limit(SALON_CUTS_PER_MINUTE_LIMIT + 1),
+      );
+      if (recentSalonCuts.size >= SALON_CUTS_PER_MINUTE_LIMIT) {
+        throw new HttpsError("resource-exhausted", "salon_cuts_rate_limited");
       }
 
       // ─── Cas client abonné (coupes illimitées) ────────────
@@ -165,11 +243,12 @@ export const addCutSecure = onCall<AddCutInput>(
         };
       }
 
-      // ─── Cas standard fidélité 4/4 ─────────────────────────
+      // ─── Cas standard fidélité X/N ─────────────────────────
+      // N = effectiveThreshold calculé plus haut (dynamique par salon ou chaîne).
       const currentCount = (customer.currentCount as number) ?? 0;
-      const wasReward = currentCount >= REWARD_THRESHOLD;
+      const wasReward = currentCount >= effectiveThreshold;
       const newCount = wasReward ? 0 : currentCount + 1;
-      const rewardUnlocked = !wasReward && newCount >= REWARD_THRESHOLD;
+      const rewardUnlocked = !wasReward && newCount >= effectiveThreshold;
 
       // Insertion atomique
       const cutRef = db.collection("cuts").doc();
@@ -276,10 +355,18 @@ function slugify(input: string): string {
 }
 
 function buildCode(): string {
+  // Alphabet de 31 caractères sans ambiguïté visuelle (pas de I/L/O/0/1).
+  // Avec 8 caractères on est à log2(31^8) ≈ 39.6 bits d'entropie, soit
+  // ~850 milliards de codes possibles — résistant à l'énumération même
+  // sans rate-limit côté Firestore.
   const alphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+  const bytes = new Uint8Array(8);
+  // crypto.getRandomValues est dispo dans Node.js 18+ via globalThis.
+  // En Cloud Functions on est sur Node 20 donc c'est garanti CSPRNG.
+  globalThis.crypto.getRandomValues(bytes);
   let out = "";
-  for (let i = 0; i < 5; i++) {
-    out += alphabet[Math.floor(Math.random() * alphabet.length)];
+  for (let i = 0; i < 8; i++) {
+    out += alphabet[bytes[i] % alphabet.length];
   }
   return `TRIMYA-${out}`;
 }
@@ -397,6 +484,101 @@ export const createSalonForOwner = onCall<CreateSalonInput>(
       salonId: id,
       activationCode: code,
     };
+  },
+);
+
+// ─── Activation kiosque sécurisée ────────────────────────────
+//
+// SÉCURITÉ CRITIQUE — Cette fonction remplace `registerSalonKioskUid`
+// côté client. Avant ce fix, la règle Firestore autorisait n'importe
+// quel utilisateur authentifié à ajouter son UID à `salons.{id}.kioskUserIds`
+// du moment qu'il connaissait un salonId. Conséquence : un attaquant
+// pouvait devenir kiosque de N'IMPORTE QUEL salon en parcourant la
+// collection salons, puis lire tous les clients et créer de faux cuts.
+//
+// Le flow correct est désormais :
+//   1) Le client appelle `claimKioskSlot({ code, salonId })`
+//   2) On valide en transaction que le code existe, n'a pas déjà été
+//      utilisé (one-shot), et pointe bien sur le salonId fourni.
+//   3) On ajoute l'UID appelant à `kioskUserIds` ET on marque le code
+//      comme consommé. Tout ça atomiquement.
+//   4) Le code est immédiatement invalidé pour les futurs appels.
+//
+// La rule Firestore correspondante autorise maintenant uniquement
+// l'admin et l'owner du salon à modifier `kioskUserIds`. L'auto-ajout
+// par un user lambda est définitivement bloqué.
+
+interface ClaimKioskInput {
+  code: string;
+  salonId: string;
+}
+
+export const claimKioskSlot = onCall<ClaimKioskInput>(
+  { region: "europe-west1" },
+  async (req) => {
+    if (!req.auth) throw new HttpsError("unauthenticated", "no_auth");
+    const callerUid = req.auth.uid;
+
+    const code = (req.data?.code ?? "").trim().toUpperCase();
+    const salonId = (req.data?.salonId ?? "").trim();
+    if (!code || !salonId) {
+      throw new HttpsError("invalid-argument", "missing_fields");
+    }
+
+    return await db.runTransaction(async (tx) => {
+      const codeRef = db.collection("activationCodes").doc(code);
+      const salonRef = db.collection("salons").doc(salonId);
+      const [codeSnap, salonSnap] = await Promise.all([
+        tx.get(codeRef),
+        tx.get(salonRef),
+      ]);
+
+      if (!codeSnap.exists) {
+        throw new HttpsError("not-found", "invalid_code");
+      }
+      if (!salonSnap.exists) {
+        throw new HttpsError("not-found", "salon_not_found");
+      }
+
+      const codeData = codeSnap.data() ?? {};
+      const salonData = salonSnap.data() ?? {};
+
+      // Le code doit pointer sur le salon demandé.
+      if (codeData.salonId !== salonId) {
+        throw new HttpsError("permission-denied", "code_salon_mismatch");
+      }
+
+      // Code one-shot déjà utilisé ?
+      if (codeData.oneShot && codeData.usedAt && codeData.usedAt > 0) {
+        throw new HttpsError("failed-precondition", "code_already_used");
+      }
+
+      // Salon désactivé ?
+      if (salonData.disabledAt && salonData.disabledAt > 0) {
+        throw new HttpsError("failed-precondition", "salon_disabled");
+      }
+
+      // Ajout idempotent : si l'UID est déjà dans la liste (re-activation
+      // sur le même appareil), on ne touche pas au compteur d'usage.
+      const existingUids: string[] = Array.isArray(salonData.kioskUserIds)
+        ? salonData.kioskUserIds
+        : [];
+      if (!existingUids.includes(callerUid)) {
+        tx.update(salonRef, {
+          kioskUserIds: FieldValue.arrayUnion(callerUid),
+          activatedAt: Date.now(),
+        });
+      }
+
+      // Marque le code comme consommé (même en cas d'idempotent, pour
+      // éviter qu'un autre device réclame le même code).
+      tx.update(codeRef, {
+        usedAt: Date.now(),
+        usedByUid: callerUid,
+      });
+
+      return { ok: true, salonId };
+    });
   },
 );
 

@@ -29,6 +29,7 @@ import { currentUser } from '@/services/auth';
 import { useApp } from '@/contexts/AppContext';
 import { useSalonPlan } from '@/hooks/useSalonPlan';
 import { useT } from '@/i18n';
+import { humanizeError } from '@/lib/humanizeError';
 import { colors, radius, spacing, typography } from '@/theme';
 import { Customer } from '@/types';
 import { CustomersStackParamList } from '@/navigation/types';
@@ -134,7 +135,7 @@ export function SalonComposeNotificationScreen() {
       // Go straight to the chat so the salon sees the message in context.
       nav.replace('Chat', { customerId: customer.id });
     } catch (e: any) {
-      Alert.alert(t('common.error'), e.message || t('salon.compose.errorSend'));
+      Alert.alert(t('common.error'), humanizeError(e, t));
     } finally {
       setSending(false);
     }

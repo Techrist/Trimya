@@ -8,13 +8,14 @@ import {
   OwnerTabParamList,
   OwnerSalonsStackParamList,
 } from './types';
-import { colors, typography } from '@/theme';
+import { colors, radius, typography } from '@/theme';
 import { useT } from '@/i18n';
 
 import { OwnerDashboardScreen } from '@/screens/owner/OwnerDashboardScreen';
 import { OwnerSalonsListScreen } from '@/screens/owner/OwnerSalonsListScreen';
 import { OwnerSalonDetailScreen } from '@/screens/owner/OwnerSalonDetailScreen';
 import { OwnerProfileScreen } from '@/screens/owner/OwnerProfileScreen';
+import { OwnerBarberTransferScreen } from '@/screens/owner/OwnerBarberTransferScreen';
 
 const Tab = createBottomTabNavigator<OwnerTabParamList>();
 const SalonsStack = createNativeStackNavigator<OwnerSalonsStackParamList>();
@@ -34,6 +35,10 @@ function SalonsStackNavigator() {
       <SalonsStack.Screen
         name="OwnerSalonDetail"
         component={OwnerSalonDetailScreen}
+      />
+      <SalonsStack.Screen
+        name="OwnerBarberTransfer"
+        component={OwnerBarberTransferScreen}
       />
     </SalonsStack.Navigator>
   );
@@ -92,6 +97,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderTopColor: colors.border,
     borderTopWidth: 1,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    // overflow:'hidden' garantit que la couleur de fond respecte les coins
+    // arrondis sur Android (sinon la `backgroundColor` déborde en angle droit).
+    overflow: 'hidden',
     height: 68,
     paddingBottom: 10,
     paddingTop: 8,

@@ -14,6 +14,8 @@ import {
   Sparkles,
   Infinity as InfinityIcon,
   Star,
+  Scissors,
+  Home,
 } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { ProgressIndicator } from '@/components/ProgressIndicator';
@@ -41,6 +43,7 @@ import {
   isCutEligibleForReview,
 } from '@/services/reviews';
 import { useT } from '@/i18n';
+import { humanizeError } from '@/lib/humanizeError';
 import { daysRemaining, formatExpiry } from '@/services/subscriptions';
 import { getLimits } from '@/lib/plans';
 import { colors, radius, spacing, typography, REWARD_THRESHOLD } from '@/theme';
@@ -53,6 +56,7 @@ import {
   Reservation,
   Salon,
   isSubscriptionActive,
+  getSalonRewardThreshold,
 } from '@/types';
 
 export function ClientDashboardScreen() {
@@ -96,6 +100,10 @@ export function ClientDashboardScreen() {
         setCustomer(c);
         setLoading(false);
 
+        // Note : on compare avec REWARD_THRESHOLD ici parce qu'on n'a pas
+        // encore le salon chargé au moment du callback customer. Le ProgressIndicator
+        // utilise quand même le threshold dynamique au rendu. La notif "reward
+        // unlocked" est juste un signal — pas critique si elle se base sur 4.
         if (
           c &&
           c.currentCount === REWARD_THRESHOLD &&
@@ -210,7 +218,7 @@ export function ClientDashboardScreen() {
       await signalArrival({ customer, etaMinutes: eta, salon });
       setQueueSheetVisible(false);
     } catch (e: any) {
-      Alert.alert(t('common.error'), e?.message || String(e));
+      Alert.alert(t('common.error'), humanizeError(e, t));
     } finally {
       setQueueSubmitting(false);
     }
@@ -230,7 +238,7 @@ export function ClientDashboardScreen() {
       setPendingReviewCut(null);
       Alert.alert(t('review.thanks.title'), t('review.thanks.text'));
     } catch (e: any) {
-      Alert.alert(t('common.error'), e?.message || String(e));
+      Alert.alert(t('common.error'), humanizeError(e, t));
     } finally {
       setReviewSubmitting(false);
     }
@@ -250,7 +258,7 @@ export function ClientDashboardScreen() {
             try {
               await cancelQueueEntry(queueEntry.id, 'customer');
             } catch (e: any) {
-              Alert.alert(t('common.error'), e?.message || String(e));
+              Alert.alert(t('common.error'), humanizeError(e, t));
             }
           },
         },
@@ -275,7 +283,9 @@ export function ClientDashboardScreen() {
     );
   }
 
-  const isReady = customer.currentCount >= REWARD_THRESHOLD;
+  // Seuil dynamique récupéré depuis le salon (avec fallback constant).
+  const rewardThreshold = getSalonRewardThreshold(salon, REWARD_THRESHOLD);
+  const isReady = customer.currentCount >= rewardThreshold;
   const subscribed = isSubscriptionActive(customer);
   // Limites du SALON (pas de l'owner — côté client on n'a pas accès au doc owner).
   // Si le salon est en plan Entreprise via owner, le client ne le verra pas mais
@@ -298,7 +308,10 @@ export function ClientDashboardScreen() {
         <SubscriptionCard customer={customer} />
       ) : (
         <Card style={styles.progressCard} elevated>
-          <ProgressIndicator count={customer.currentCount} />
+          <ProgressIndicator
+            count={customer.currentCount}
+            threshold={rewardThreshold}
+          />
         </Card>
       )}
 
@@ -399,6 +412,24 @@ export function ClientDashboardScreen() {
       >
         <Clock color={colors.textMuted} size={18} strokeWidth={2} />
         <Text style={styles.historyLinkText}>{t('client.dashboard.viewHistory')}</Text>
+        <ChevronRight color={colors.textDim} size={18} strokeWidth={2} />
+      </Pressable>
+
+      <Pressable
+        onPress={() => nav.navigate('ClientBarbers')}
+        style={styles.historyLink}
+      >
+        <Scissors color={colors.textMuted} size={18} strokeWidth={2} />
+        <Text style={styles.historyLinkText}>{t('client.dashboard.viewBarbers')}</Text>
+        <ChevronRight color={colors.textDim} size={18} strokeWidth={2} />
+      </Pressable>
+
+      <Pressable
+        onPress={() => nav.navigate('ClientHomeRequestsList')}
+        style={styles.historyLink}
+      >
+        <Home color={colors.textMuted} size={18} strokeWidth={2} />
+        <Text style={styles.historyLinkText}>{t('client.dashboard.viewHomeRequests')}</Text>
         <ChevronRight color={colors.textDim} size={18} strokeWidth={2} />
       </Pressable>
 

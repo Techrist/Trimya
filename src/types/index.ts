@@ -51,6 +51,24 @@ export interface Salon {
    * Affiché et pré-rempli au moment d'activer un client. Devise = salon.currency.
    */
   subscriptionPrice?: number;
+  /**
+   * Seuil de récompense fidélité : nombre de coupes payantes avant la coupe
+   * offerte. Défaut 4 (4 payées → 5ᵉ offerte). Configurable par le salon.
+   * Valeur valide : entier entre 1 et 20.
+   */
+  rewardThreshold?: number;
+  /**
+   * Seuil effectivement appliqué (dénormalisé par l'admin) :
+   *  - Si l'owner du salon est en mode fidélité partagée → owner.chainRewardThreshold
+   *  - Sinon → salon.rewardThreshold
+   * Le mobile lit ce champ pour avoir un seul point de vérité.
+   */
+  effectiveRewardThreshold?: number;
+  /**
+   * True si l'owner du salon a activé la fidélité partagée (loyaltyMode='shared').
+   * Dénormalisé par l'admin pour que le kiosk puisse décider sans lire l'owner.
+   */
+  loyaltySharedWithOwner?: boolean;
 }
 
 /** Format d'une heure : "HH:MM" (24h). */
@@ -128,8 +146,30 @@ export interface Owner {
   plan?: OwnerPlanId;
   planActivatedAt?: number;
   planExpiresAt?: number;
+  /**
+   * Fin de l'essai Entreprise Pro gratuit accordé à l'owner (ms).
+   * 0 ou absent = pas de trial. L'admin propage en cascade
+   * `salon.trialEndsAt` sur chaque salon de la chaîne pour que le mobile
+   * applique l'effet Pro sans logique supplémentaire (le mécanisme trial
+   * existant côté salon prend le relais).
+   */
+  trialEndsAt?: number;
   /** IDs des salons possédés (dénormalisé pour lookup rapide côté app). */
   salonIds?: string[];
+  /**
+   * Mode de fidélité pour la chaîne du propriétaire :
+   *  - 'shared' : un client compte ses coupes sur tous les salons de la chaîne
+   *    (carte unique pour la marque)
+   *  - 'blocked' (défaut) : chaque salon est indépendant, le client doit migrer
+   *    pour changer de salon
+   */
+  loyaltyMode?: 'shared' | 'blocked';
+  /**
+   * Seuil de récompense appliqué à toute la chaîne quand loyaltyMode='shared'.
+   * Surcharge le rewardThreshold de chaque salon de la chaîne.
+   * Ignoré si loyaltyMode!='shared'. Défaut 4.
+   */
+  chainRewardThreshold?: number;
   /** Référence de paiement (privée, stockée dans owners/{id}/private/data). */
   createdAt: number;
   /** Désactivation soft. */
@@ -169,6 +209,13 @@ export interface Customer {
   pushTokenUpdatedAt?: number;
   pushEnabled?: boolean;
   // ── Informations personnelles enrichies ──────────
+  /**
+   * Nom de famille du client (optionnel, défini dans le profil).
+   * Le champ `name` reste le PRÉNOM affiché partout dans l'app
+   * (greetings, listings, etc.) pour ne rien casser. Si tu veux un
+   * affichage complet « Prénom Nom », concatène `name + lastName`.
+   */
+  lastName?: string;
   /** Email du client (optionnel, sert aux reçus + récup compte). */
   email?: string;
   /** Date de naissance en ISO YYYY-MM-DD. */
@@ -281,6 +328,63 @@ export interface Reservation {
   updatedBy: SenderRole;
 }
 
+// ═══════════════════════════════════════════════════════════════
+// Service à domicile — un client commande UN coiffeur précis pour
+// qu'il vienne chez lui. Le salon confirme, contre-propose un autre
+// coiffeur/créneau, ou refuse. Inspiré du modèle Reservation.
+// ═══════════════════════════════════════════════════════════════
+
+export type HomeServiceStatus =
+  | 'pending'    // demande envoyée par le client, en attente côté salon
+  | 'confirmed'  // salon a confirmé (ou client a accepté la contre-proposition)
+  | 'proposed'   // salon contre-propose un autre coiffeur / créneau
+  | 'refused'    // salon refuse la demande
+  | 'cancelled'  // client annule
+  | 'completed'; // coupe effectuée (auto-marquée après scan QR à domicile)
+
+export interface HomeServiceRequest {
+  id: string;
+  customerId: string;
+  /** Dénormalisé pour affichage côté salon sans relookup. */
+  customerName: string;
+  customerPhone: string;
+  salonId: string;
+
+  /** Coiffeur initialement choisi par le client. */
+  barberId: string;
+  barberName: string;
+
+  /** Adresse libre (ville, quartier, rue, immeuble). */
+  address: string;
+  /** Détails complémentaires : « maison verte, portail noir, 2ᵉ étage ». */
+  addressNotes?: string;
+  /** Ville extraite si renseignée séparément, sinon vide. */
+  city?: string;
+
+  /** Timestamp ms du créneau souhaité par le client. */
+  requestedFor: number;
+
+  /** Description libre du service voulu (« coupe homme + barbe »). */
+  message?: string;
+
+  status: HomeServiceStatus;
+  createdAt: number;
+  updatedAt: number;
+  updatedBy: SenderRole;
+
+  // ── Contre-proposition (status === 'proposed') ──
+  /** Coiffeur alternatif proposé par le salon (si différent). */
+  proposedBarberId?: string;
+  proposedBarberName?: string;
+  /** Créneau alternatif proposé (si différent). */
+  proposedFor?: number;
+  /** Message d'accompagnement de la contre-proposition. */
+  proposeMessage?: string;
+
+  // ── Refus ──
+  refuseMessage?: string;
+}
+
 export interface Cut {
   id: string;
   customerId: string;
@@ -332,6 +436,24 @@ export function isSubscriptionActive(
   now: number = Date.now(),
 ): boolean {
   return !!customer.subscriptionExpiresAt && customer.subscriptionExpiresAt > now;
+}
+
+/**
+ * Renvoie le seuil de récompense effectif d'un salon (avec fallbacks) :
+ *  1. effectiveRewardThreshold (poussé par l'admin si fidélité partagée)
+ *  2. rewardThreshold (configuré par le salon directement)
+ *  3. defaultThreshold (constant fallback)
+ */
+export function getSalonRewardThreshold(
+  salon: Pick<Salon, 'rewardThreshold' | 'effectiveRewardThreshold'> | null | undefined,
+  defaultThreshold = 4,
+): number {
+  if (!salon) return defaultThreshold;
+  return (
+    salon.effectiveRewardThreshold ??
+    salon.rewardThreshold ??
+    defaultThreshold
+  );
 }
 
 /**

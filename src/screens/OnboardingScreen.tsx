@@ -3,13 +3,21 @@ import { View, Text, StyleSheet, ImageBackground } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Scissors, Zap, Bell, LucideIcon } from 'lucide-react-native';
+import {
+  Scissors,
+  Zap,
+  Bell,
+  Users,
+  BarChart3,
+  LucideIcon,
+} from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { LanguageSwitch } from '@/components/LanguageSwitch';
 import { useT } from '@/i18n';
 import { Button } from '@/components/Button';
 import { Logo } from '@/components/Logo';
 import { useApp } from '@/contexts/AppContext';
+import { isProApp } from '@/lib/appTarget';
 import { colors, spacing, typography } from '@/theme';
 import { RootStackParamList } from '@/navigation/types';
 
@@ -21,11 +29,27 @@ export function OnboardingScreen() {
   const nav = useNavigation<Nav>();
   const { setOnboarded } = useApp();
   const { t } = useT();
+  const isPro = isProApp();
 
   const handleStart = async () => {
     await setOnboarded();
-    nav.replace('RoleSelection');
+    // Trimya Client : pas de RoleSelection, on va directement à PhoneSignup.
+    // Trimya Pro    : on demande de choisir entre Salon et Propriétaire.
+    nav.replace(isPro ? 'ProRoleSelection' : 'PhoneSignup');
   };
+
+  // Features adaptées à la cible : marketing client vs marketing pro
+  const features: Array<{ icon: LucideIcon; titleKey: string; subKey: string }> = isPro
+    ? [
+        { icon: Scissors, titleKey: 'onboarding.pro.feature.scan.title', subKey: 'onboarding.pro.feature.scan.subtitle' },
+        { icon: Users, titleKey: 'onboarding.pro.feature.clients.title', subKey: 'onboarding.pro.feature.clients.subtitle' },
+        { icon: BarChart3, titleKey: 'onboarding.pro.feature.stats.title', subKey: 'onboarding.pro.feature.stats.subtitle' },
+      ]
+    : [
+        { icon: Scissors, titleKey: 'onboarding.feature.cuts.title', subKey: 'onboarding.feature.cuts.subtitle' },
+        { icon: Zap, titleKey: 'onboarding.feature.fast.title', subKey: 'onboarding.feature.fast.subtitle' },
+        { icon: Bell, titleKey: 'onboarding.feature.notif.title', subKey: 'onboarding.feature.notif.subtitle' },
+      ];
 
   return (
     <ImageBackground
@@ -42,26 +66,23 @@ export function OnboardingScreen() {
         <View style={styles.content}>
           <View style={styles.top}>
             <Logo size={140} />
-            <Text style={styles.brand}>{t('onboarding.brand')}</Text>
-            <Text style={styles.tagline}>{t('onboarding.tagline')}</Text>
+            <Text style={styles.brand}>
+              {isPro ? t('onboarding.pro.brand') : t('onboarding.brand')}
+            </Text>
+            <Text style={styles.tagline}>
+              {isPro ? t('onboarding.pro.tagline') : t('onboarding.tagline')}
+            </Text>
           </View>
 
           <View style={styles.features}>
-            <Feature
-              Icon={Scissors}
-              title={t('onboarding.feature.cuts.title')}
-              subtitle={t('onboarding.feature.cuts.subtitle')}
-            />
-            <Feature
-              Icon={Zap}
-              title={t('onboarding.feature.fast.title')}
-              subtitle={t('onboarding.feature.fast.subtitle')}
-            />
-            <Feature
-              Icon={Bell}
-              title={t('onboarding.feature.notif.title')}
-              subtitle={t('onboarding.feature.notif.subtitle')}
-            />
+            {features.map((f) => (
+              <Feature
+                key={f.titleKey}
+                Icon={f.icon}
+                title={t(f.titleKey as any)}
+                subtitle={t(f.subKey as any)}
+              />
+            ))}
           </View>
 
           <View style={styles.cta}>

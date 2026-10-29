@@ -7,13 +7,53 @@ Stack : React Native + Expo + TypeScript + Firebase (Auth téléphone, Firestore
 
 ---
 
+## 🎯 Deux apps depuis un seul codebase (build targeting)
+
+Depuis le split, ce repo produit **deux apps mobiles distinctes** publiées
+séparément sur les stores :
+
+| App | Audience | Bundle ID | Variable d'env |
+|---|---|---|---|
+| **Trimya** | Clients particuliers (B2C — carte de fidélité QR) | `app.trimya.client` | `TRIMYA_APP=client` |
+| **Trimya Pro** | Salons (kiosque tablette) + Propriétaires de chaînes (B2B) | `app.trimya.pro` | `TRIMYA_APP=pro` |
+
+Les deux apps partagent **100 % du backend Firebase**, des règles Firestore,
+des Cloud Functions et de l'admin Next.js. Seul le bundle JS et la
+navigation diffèrent à l'exécution selon la variable `TRIMYA_APP`.
+
+### Commandes
+
+```bash
+# Dev local — Trimya (client, défaut)
+npm start
+
+# Dev local — Trimya Pro
+TRIMYA_APP=pro npm start    # macOS/Linux
+$env:TRIMYA_APP="pro"; npm start    # PowerShell Windows
+
+# Builds production
+eas build --profile production-client --platform all
+eas build --profile production-pro    --platform all
+```
+
+### Fichiers clés
+
+- `app.config.js` — pilote tout le packaging selon `TRIMYA_APP`
+- `src/lib/appTarget.ts` — lit la cible à l'exécution (`isClientApp()` / `isProApp()`)
+- `src/navigation/RootNavigator.tsx` — conditionne les routes selon la cible
+- `eas.json` — 6 profils : `development`/`preview`/`production-client` + variants `-pro`
+- `assets/icon.png` + `assets/icon-pro.png` — icônes distinctes (badge orange « PRO »)
+
+---
+
 ## Architecture en bref
 
-- **Une seule app**, deux modes choisis au premier lancement :
-  - **Client** : inscription par téléphone, QR code personnel, dashboard de progression, historique.
-  - **Salon** : activation par code (fourni par toi), scanner de QR, ajout de coupe en 1 tap.
-- **Mono-salon par déploiement** mais multi-tenant côté backend : chaque salon a un `salonId` unique. Tu provisionnes les salons dans Firestore et distribues les codes d'activation.
-- **Suivi** : tu utilises directement la console Firebase pour voir tes salons et leurs stats. Pas de dashboard web à coder pour le MVP.
+- **Trimya (B2C)** : inscription par téléphone, QR code personnel, dashboard de progression, historique, notes coiffeurs, réservations, file d'attente.
+- **Trimya Pro (B2B)** :
+  - Mode **Salon** (kiosque tablette) — activation par code, scanner QR, fiche client, gestion d'équipe, stats.
+  - Mode **Propriétaire** — dashboard consolidé multi-salons, fidélité partagée, transferts de coiffeurs.
+- **Mono-salon par déploiement Pro** mais multi-tenant côté backend : chaque salon a un `salonId` unique.
+- **Suivi** : Trimya Admin (Next.js, dans `/admin`) — déjà déployé sur Vercel.
 
 ---
 

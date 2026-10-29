@@ -28,6 +28,7 @@ import {
   subscribeSalonQueue,
 } from '@/services/queue';
 import { useT } from '@/i18n';
+import { humanizeError } from '@/lib/humanizeError';
 import { colors, radius, spacing, typography } from '@/theme';
 import { QueueEntry } from '@/types';
 import { ScannerStackParamList } from '@/navigation/types';
@@ -73,7 +74,7 @@ export function SalonQueueScreen() {
     try {
       await markQueueEntryArrived(entry.id);
     } catch (e: any) {
-      Alert.alert(t('common.error'), e?.message || String(e));
+      Alert.alert(t('common.error'), humanizeError(e, t));
     }
   };
 
@@ -92,7 +93,7 @@ export function SalonQueueScreen() {
             try {
               await cancelQueueEntry(entry.id, 'salon');
             } catch (e: any) {
-              Alert.alert(t('common.error'), e?.message || String(e));
+              Alert.alert(t('common.error'), humanizeError(e, t));
             }
           },
         },

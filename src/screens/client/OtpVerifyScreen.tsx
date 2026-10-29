@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Alert } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useScreenCapturePrevention } from '@/hooks/useScreenCapturePrevention';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Screen } from '@/components/Screen';
 import { Button } from '@/components/Button';
@@ -9,6 +10,7 @@ import { verifyOtp } from '@/services/auth';
 import { findCustomerByPhone } from '@/services/customers';
 import { storage } from '@/services/storage';
 import { useT } from '@/i18n';
+import { humanizeError } from '@/lib/humanizeError';
 import { colors, spacing, typography } from '@/theme';
 import { RootStackParamList } from '@/navigation/types';
 
@@ -24,6 +26,7 @@ export function OtpVerifyScreen() {
   const { t } = useT();
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
+  useScreenCapturePrevention();
 
   const handleVerify = async () => {
     if (code.length < 4) {
@@ -42,7 +45,7 @@ export function OtpVerifyScreen() {
         nav.replace('ClientName');
       }
     } catch (e: any) {
-      Alert.alert(t('auth.otp.invalid'), e.message);
+      Alert.alert(t('auth.otp.invalid'), humanizeError(e, t));
     } finally {
       setLoading(false);
     }

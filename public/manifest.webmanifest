@@ -1,0 +1,43 @@
+{
+  "name": "Trimya — Carte de fidélité coiffeur",
+  "short_name": "Trimya",
+  "description": "Ta carte de fidélité coiffeur dans ton téléphone. 4 coupes payées, la 5ᵉ offerte.",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#0A0A0A",
+  "background_color": "#0A0A0A",
+  "lang": "fr",
+  "dir": "ltr",
+  "categories": ["lifestyle", "business", "social"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Mon QR code",
+      "short_name": "QR code",
+      "description": "Affiche ta carte de fidélité",
+      "url": "/?screen=qr",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

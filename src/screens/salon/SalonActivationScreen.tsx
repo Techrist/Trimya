@@ -6,6 +6,9 @@ import { Screen } from '@/components/Screen';
 import { Button } from '@/components/Button';
 import { TextField } from '@/components/TextField';
 import { Logo } from '@/components/Logo';
+import { LegalLinks } from '@/components/LegalLinks';
+import { humanizeError } from '@/lib/humanizeError';
+import { navigateToRoot } from '@/navigation/navigateToRoot';
 import { activateSalonByCode, registerSalonKioskUid } from '@/services/salons';
 import { signInAsSalonKiosk, currentUser } from '@/services/auth';
 import { registerSalonKioskPushToken } from '@/services/push';
@@ -31,16 +34,20 @@ export function SalonActivationScreen() {
     }
     setLoading(true);
     try {
-      const user = await signInAsSalonKiosk();
+      // 1) Sign-in anonyme : crée un UID Firebase pour ce device kiosque.
+      await signInAsSalonKiosk();
+      // 2) Résolution code → salon (lookup-only, ne touche pas aux droits).
       const salon = await activateSalonByCode(trimmed);
-      // Link this device's auth UID to the salon so server-side rules can
-      // verify "is this writer actually a kiosk of this salon?".
-      await registerSalonKioskUid(salon.id, user.uid);
+      // 3) Cloud Function sécurisée qui valide le code ET ajoute le UID
+      //    aux kioskUserIds en transaction atomique. Avant on faisait un
+      //    updateDoc direct côté client — c'était une faille critique :
+      //    n'importe qui pouvait s'auto-déclarer kiosque d'un salon.
+      await registerSalonKioskUid(salon.id, trimmed);
       await setSalonId(salon.id);
       registerSalonKioskPushToken(salon.id);
       nav.reset({ index: 0, routes: [{ name: 'SalonTabs' }] });
     } catch (e: any) {
-      Alert.alert(t('salon.activation.failed'), e.message || t('salon.activation.invalidCode'));
+      Alert.alert(t('salon.activation.failed'), humanizeError(e, t));
     } finally {
       setLoading(false);
     }
@@ -49,7 +56,7 @@ export function SalonActivationScreen() {
   return (
     <Screen padded keyboardAvoiding>
       <View style={styles.header}>
-        <Logo size={56} />
+        <Logo size={72} />
         <Text style={styles.title}>{t('salon.activation.title')}</Text>
         <Text style={styles.subtitle}>{t('salon.activation.subtitle')}</Text>
       </View>
@@ -69,27 +76,34 @@ export function SalonActivationScreen() {
         label={t('salon.activation.notSalon')}
         onPress={async () => {
           await clearMode();
-          nav.reset({ index: 0, routes: [{ name: 'RoleSelection' }] });
+          // En Trimya Pro, retour à ProRoleSelection (salon vs owner).
+          navigateToRoot(nav);
         }}
         variant="ghost"
       />
+
+      <LegalLinks variant="inline" />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   header: {
+    alignItems: 'center',
     marginTop: spacing.lg,
     marginBottom: spacing.xl,
   },
   title: {
     ...typography.h1,
     color: colors.text,
+    textAlign: 'center',
     marginTop: spacing.md,
   },
   subtitle: {
     ...typography.body,
     color: colors.textMuted,
+    textAlign: 'center',
     marginTop: spacing.xs,
+    paddingHorizontal: spacing.lg,
   },
 });

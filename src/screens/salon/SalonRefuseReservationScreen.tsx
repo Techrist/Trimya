@@ -18,6 +18,7 @@ import { Button } from '@/components/Button';
 import { getCustomer } from '@/services/customers';
 import { getReservation, updateReservationStatus } from '@/services/reservations';
 import { useT } from '@/i18n';
+import { humanizeError } from '@/lib/humanizeError';
 import { colors, radius, spacing, typography } from '@/theme';
 import { Customer, Reservation } from '@/types';
 import { ReservationsStackParamList } from '@/navigation/types';
@@ -60,7 +61,7 @@ export function SalonRefuseReservationScreen() {
       });
       nav.goBack();
     } catch (e: any) {
-      Alert.alert(t('common.error'), e.message || t('salon.refuse.errorRefuse'));
+      Alert.alert(t('common.error'), humanizeError(e, t));
     } finally {
       setSubmitting(false);
     }

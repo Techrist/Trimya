@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHash } from "node:crypto";
 import { z } from "zod";
 import { adminDb } from "@/lib/firebase-admin";
+import { classifyError, logServerError } from "@/lib/api-errors";
 
 /**
  * POST /api/contact — Réception d'un formulaire de contact depuis le site
@@ -51,32 +53,49 @@ export async function POST(req: NextRequest) {
 
   if (isRateLimited(ip)) {
     return NextResponse.json(
-      { error: "rate_limited", message: "Trop de tentatives, patiente 1 min." },
+      { error: "rate_limited" },
       { status: 429 },
     );
   }
   markRequest(ip);
+
+  // RGPD — On ne stocke PAS l'IP brute (donnée personnelle au sens
+  // RGPD art. 4.1) ni le user-agent complet (peut contenir des
+  // identifiants device). On garde uniquement un hash salé de l'IP
+  // pour le rate-limit anti-spam / la détection d'abus. Le hash est
+  // irréversible côté admin et n'est conservé que 30 jours via une
+  // purge programmée (à brancher si volume).
+  const ipHash = hashIp(ip);
 
   try {
     const ref = adminDb.collection("contactRequests").doc();
     await ref.set({
       id: ref.id,
       ...data,
-      ip,
-      userAgent: req.headers.get("user-agent") || "",
+      ipHash,
       status: "new",
       createdAt: now,
     });
 
     return NextResponse.json({ ok: true });
   } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : "internal_error";
-    console.error("[contact] save failed:", message);
+    logServerError("contact.save", e);
     return NextResponse.json(
-      { error: "internal_error", message },
+      { error: classifyError(e) },
       { status: 500 },
     );
   }
+}
+
+/**
+ * Hash SHA-256 salé de l'IP. Le salt est l'identifiant projet (constant
+ * mais imprévisible pour un attaquant externe), ce qui rend impossible
+ * une rainbow table générique sur les IPs IPv4 publiques. L'IP brute
+ * elle-même n'est jamais persistée.
+ */
+function hashIp(ip: string): string {
+  const salt = process.env.CONTACT_IP_SALT ?? "trimya-default-salt-change-me";
+  return createHash("sha256").update(`${salt}:${ip}`).digest("hex").slice(0, 32);
 }
 
 // ─── Mini rate-limiter in-memory ──────────────────────────────

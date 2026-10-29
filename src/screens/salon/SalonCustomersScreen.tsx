@@ -15,9 +15,10 @@ import { Card } from '@/components/Card';
 import { Avatar } from '@/components/Avatar';
 import { useApp } from '@/contexts/AppContext';
 import { subscribeSalonCustomers } from '@/services/customers';
+import { subscribeSalon } from '@/services/salons';
 import { useT, getCurrentLocale, localeToBcp47 } from '@/i18n';
 import { colors, radius, spacing, typography, REWARD_THRESHOLD } from '@/theme';
-import { Customer, CustomerSort } from '@/types';
+import { Customer, CustomerSort, Salon, getSalonRewardThreshold } from '@/types';
 import { CustomersStackParamList } from '@/navigation/types';
 
 type Nav = NativeStackNavigationProp<CustomersStackParamList, 'CustomersList'>;
@@ -34,9 +35,18 @@ export function SalonCustomersScreen() {
   const { salonId } = useApp();
   const { t } = useT();
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [salon, setSalon] = useState<Salon | null>(null);
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<CustomerSort>('lastVisit');
   const [loading, setLoading] = useState(true);
+
+  // Seuil dynamique pour afficher X/Y sur chaque ligne client.
+  const rewardThreshold = getSalonRewardThreshold(salon, REWARD_THRESHOLD);
+
+  useEffect(() => {
+    if (!salonId) return;
+    return subscribeSalon(salonId, setSalon);
+  }, [salonId]);
 
   useEffect(() => {
     if (!salonId) return;
@@ -138,6 +148,7 @@ export function SalonCustomersScreen() {
           renderItem={({ item }) => (
             <CustomerRow
               customer={item}
+              rewardThreshold={rewardThreshold}
               onPress={() =>
                 nav.navigate('CustomerDetail', { customerId: item.id })
               }
@@ -153,10 +164,12 @@ export function SalonCustomersScreen() {
 
 function CustomerRow({
   customer,
+  rewardThreshold,
   onPress,
   t,
 }: {
   customer: Customer;
+  rewardThreshold: number;
   onPress: () => void;
   t: (key: any, params?: Record<string, string | number>) => string;
 }) {
@@ -198,7 +211,7 @@ function CustomerRow({
           </View>
           <View style={styles.progressTag}>
             <Text style={styles.progressText}>
-              {Math.min(customer.currentCount, REWARD_THRESHOLD)}/{REWARD_THRESHOLD}
+              {Math.min(customer.currentCount, rewardThreshold)}/{rewardThreshold}
             </Text>
           </View>
           <ChevronRight color={colors.textDim} size={18} strokeWidth={2} />

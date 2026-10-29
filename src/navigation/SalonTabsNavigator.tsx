@@ -19,7 +19,7 @@ import {
   ReservationsStackParamList,
   ProfileStackParamList,
 } from './types';
-import { colors, typography } from '@/theme';
+import { colors, radius, typography } from '@/theme';
 import { useApp } from '@/contexts/AppContext';
 import { useSalonUnreadCount } from '@/hooks/useSalonUnreadCount';
 import { useSalonPendingReservations } from '@/hooks/useSalonPendingReservations';
@@ -40,6 +40,8 @@ import { SalonReservationsScreen } from '@/screens/salon/SalonReservationsScreen
 import { SalonReservationDetailScreen } from '@/screens/salon/SalonReservationDetailScreen';
 import { SalonProposeReservationScreen } from '@/screens/salon/SalonProposeReservationScreen';
 import { SalonRefuseReservationScreen } from '@/screens/salon/SalonRefuseReservationScreen';
+import { SalonHomeRequestsScreen } from '@/screens/salon/SalonHomeRequestsScreen';
+import { SalonHomeRequestActionScreen } from '@/screens/salon/SalonHomeRequestActionScreen';
 import { SalonProfileScreen } from '@/screens/salon/SalonProfileScreen';
 import { SalonStatsScreen } from '@/screens/salon/SalonStatsScreen';
 import { SalonBarbersScreen } from '@/screens/salon/SalonBarbersScreen';
@@ -124,6 +126,14 @@ function ReservationsStackNavigator() {
       <ReservationsStack.Screen
         name="RefuseReservation"
         component={SalonRefuseReservationScreen}
+      />
+      <ReservationsStack.Screen
+        name="SalonHomeRequests"
+        component={SalonHomeRequestsScreen}
+      />
+      <ReservationsStack.Screen
+        name="SalonHomeRequestAction"
+        component={SalonHomeRequestActionScreen}
       />
     </ReservationsStack.Navigator>
   );
@@ -260,6 +270,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderTopColor: colors.border,
     borderTopWidth: 1,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    // overflow:'hidden' garantit que la couleur de fond respecte les coins
+    // arrondis sur Android (sinon la `backgroundColor` déborde en angle droit).
+    overflow: 'hidden',
     height: 68,
     paddingBottom: 10,
     paddingTop: 8,

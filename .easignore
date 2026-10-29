@@ -1,0 +1,150 @@
+# ═══════════════════════════════════════════════════════════════
+# .easignore — fichiers exclus du tarball uploadé vers EAS Build
+# ═══════════════════════════════════════════════════════════════
+#
+# IMPORTANT : ce fichier REMPLACE .gitignore pour EAS (il ne s'y ajoute
+# pas). Toutes les exclusions de sécurité du .gitignore sont donc
+# DUPLIQUÉES ici, plus les exclusions spécifiques au build mobile.
+#
+# Objectif : réduire la taille de l'upload et accélérer les builds
+# en ne transmettant QUE ce que les builds Android/iOS de l'app mobile
+# ont réellement besoin.
+
+
+# ── 1. Dépendances et caches (re-générés sur le serveur EAS) ─────
+node_modules/
+.expo/
+dist/
+web-build/
+*.log
+
+
+# ── 2. Variables d'environnement (les secrets vont via `eas secret`) ──
+.env
+.env.local
+.env.*.local
+
+
+# ── 3. Fichiers OS / éditeurs ────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.claude/
+.idea/
+*.orig.*
+
+
+# ── 4. Artefacts natifs locaux (regénérés par EAS) ───────────────
+ios/
+android/
+
+
+# ── 5. Secrets Firebase / signing (injectés via EAS secrets) ─────
+firebase-service-account*.json
+*-service-account.json
+google-services.json
+google-services-pro.json
+GoogleService-Info.plist
+GoogleService-Info-pro.plist
+*.keystore
+*.jks
+*.p12
+*.p8
+*.mobileprovision
+*.cer
+
+
+# ── 6. Configs Firebase (déployées séparément via `firebase deploy`) ──
+# Le build mobile n'a pas besoin de ces fichiers : ils servent à
+# `firebase deploy --only firestore:rules,firestore:indexes,functions`.
+firestore.rules
+firestore.indexes.json
+firebase.json
+.firebaserc
+.runtimeconfig.json
+.firebase/
+
+
+# ── 7. Cloud Functions (déployées séparément via Firebase CLI) ───
+# Tout le dossier functions/ est packagé et déployé par Firebase à part.
+# Aucune ligne de ce code n'est exécutée dans l'app mobile.
+functions/
+
+
+# ── 8. Admin web Next.js (déployé séparément sur Vercel) ─────────
+# Le site web trimya.com (marketing + admin) vit dans admin/ et est
+# déployé via `vercel --prod` ou push Git. Pas de lien avec EAS Build.
+admin/
+
+
+# ── 9. Icônes générées pour la présentation PowerPoint ───────────
+# Les ~45 PNG dans assets/icons/ sont des icônes Lucide générées en
+# Python pour le pitch deck commercial. Le code mobile utilise la lib
+# npm `lucide-react-native` directement — ces PNG ne sont JAMAIS requis
+# par le bundle JS de l'app.
+assets/icons/
+
+
+# ── 10. Documents générés (présentations, exports légaux) ────────
+# Fichiers Office produits par les scripts generate-*.js / .py au cours
+# du projet. Aucune utilité pour le build mobile.
+*.docx
+*.pptx
+*.pdf
+~$*.docx
+~$*.pptx
+Trimya-Presentation*
+generate-presentation.js
+generate-trimya-pptx.js
+generate-icons.py
+
+
+# ── 11. Documentation (lisible côté repo, inutile dans le bundle) ──
+README.md
+SECURITY.md
+*.md
+
+
+# ── 12. Tests (pas d'environnement de test embarqué côté app) ────
+__tests__/
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+jest.config.*
+.jest-cache/
+
+
+# ── 13. CI / scripts (non utilisés par EAS Build) ────────────────
+.github/
+.gitlab-ci.yml
+.circleci/
+
+
+# ── 14. Le .git lui-même (très lourd, EAS n'en a pas besoin) ─────
+.git/
+.gitattributes
+.gitignore
+
+
+# ── 15. Lockfiles d'autres package managers (on garde npm) ───────
+yarn.lock
+pnpm-lock.yaml
+bun.lockb
+
+
+# ═══════════════════════════════════════════════════════════════
+# ✓ Restent UPLOADÉS (ne PAS ajouter aux exclusions ci-dessus) :
+#
+#   - app.json + app.config.js     → config Expo (obligatoire)
+#   - eas.json                     → profiles EAS (obligatoire)
+#   - tsconfig.json                → TS config (obligatoire)
+#   - babel.config.js              → Babel (obligatoire)
+#   - metro.config.js              → Metro bundler (obligatoire)
+#   - package.json + package-lock  → deps (obligatoire)
+#   - index.ts + App.tsx           → entry points (obligatoire)
+#   - src/                         → code mobile (obligatoire)
+#   - assets/*.png (sauf icons/)   → icônes app, splash, logo (obligatoire)
+#   - .npmrc                       → config npm registre
+#
+# ═══════════════════════════════════════════════════════════════

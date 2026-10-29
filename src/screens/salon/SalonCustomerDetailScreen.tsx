@@ -56,6 +56,7 @@ import {
   CutReview,
   Salon,
   isSubscriptionActive,
+  getSalonRewardThreshold,
 } from '@/types';
 import { CustomersStackParamList } from '@/navigation/types';
 
@@ -167,6 +168,9 @@ export function SalonCustomerDetailScreen() {
     );
   };
 
+  // Seuil dynamique du salon (avec fallback constant).
+  const rewardThreshold = getSalonRewardThreshold(salon, REWARD_THRESHOLD);
+
   const handleAddCut = async () => {
     if (!customer || !salonId) return;
     setAdding(true);
@@ -175,7 +179,7 @@ export function SalonCustomerDetailScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert(
         r.wasReward ? t('salon.customer.rewardOk') : t('salon.customer.addCutOk'),
-        `${customer.name || t('salon.reservation.client')} : ${r.newCount}/${REWARD_THRESHOLD}` +
+        `${customer.name || t('salon.reservation.client')} : ${r.newCount}/${rewardThreshold}` +
           (r.rewardUnlocked ? t('salon.customer.rewardUnlockedNote') : ''),
       );
     } catch (e: any) {
@@ -278,7 +282,10 @@ export function SalonCustomerDetailScreen() {
             </View>
 
             <Card style={styles.progressCard} elevated>
-              <ProgressIndicator count={customer.currentCount} />
+              <ProgressIndicator
+                count={customer.currentCount}
+                threshold={rewardThreshold}
+              />
             </Card>
 
             {limits.subscriptions ? (
@@ -326,7 +333,7 @@ export function SalonCustomerDetailScreen() {
 
             <Button
               label={
-                customer.currentCount >= REWARD_THRESHOLD
+                customer.currentCount >= rewardThreshold
                   ? t('salon.customer.validateRewardCta')
                   : t('salon.customer.addCutCta')
               }

@@ -3,8 +3,8 @@ import {
   getDoc,
   onSnapshot,
   updateDoc,
-  arrayUnion,
 } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db } from './firebase';
 import { Salon } from '@/types';
 
@@ -82,6 +82,19 @@ export async function setSalonLogo(
   await updateDoc(doc(db, 'salons', salonId), { logo: logo ?? null });
 }
 
+/**
+ * Configure le seuil de récompense fidélité du salon (1-20).
+ * En cas de fidélité partagée côté owner, ce champ est ignoré au profit
+ * de owner.chainRewardThreshold (qui surcharge via effectiveRewardThreshold).
+ */
+export async function setSalonRewardThreshold(
+  salonId: string,
+  threshold: number,
+): Promise<void> {
+  const safe = Math.max(1, Math.min(20, Math.round(threshold)));
+  await updateDoc(doc(db, 'salons', salonId), { rewardThreshold: safe });
+}
+
 export async function setSalonKioskPushToken(
   salonId: string,
   token: string,
@@ -93,17 +106,28 @@ export async function setSalonKioskPushToken(
 }
 
 /**
- * Register the current authenticated UID as an authorized kiosk for this salon.
- * Used by Firestore rules to enforce that only declared salon kiosks can
- * mutate this salon's customers/cuts/etc.
+ * Enregistre l'UID authentifié comme kiosque autorisé pour ce salon, via
+ * la Cloud Function `claimKioskSlot`.
+ *
+ * Pourquoi une Cloud Function et pas un `updateDoc` direct ? Sécurité.
+ * Avant ce fix, la règle Firestore autorisait n'importe quel auth user à
+ * ajouter son UID à `salons.{id}.kioskUserIds` — donc n'importe qui qui
+ * connaissait un salonId pouvait devenir kiosque de ce salon et lire
+ * tous ses clients. La Cloud Function valide en transaction que le code
+ * d'activation correspond au salon et n'a pas déjà été consommé.
+ *
+ * Le second paramètre `code` est obligatoire : c'est le code saisi par
+ * l'utilisateur sur SalonActivationScreen. Si l'appel se fait sans code
+ * (ré-activation auto), il faut au préalable récupérer un code valide.
  */
 export async function registerSalonKioskUid(
   salonId: string,
-  uid: string,
+  code: string,
 ): Promise<void> {
-  await updateDoc(doc(db, 'salons', salonId), {
-    kioskUserIds: arrayUnion(uid),
-    // Marqueur d'activation effective (premier kiosque appairé).
-    activatedAt: Date.now(),
-  });
+  const functions = getFunctions(undefined, 'europe-west1');
+  const claim = httpsCallable<
+    { salonId: string; code: string },
+    { ok: boolean; salonId: string }
+  >(functions, 'claimKioskSlot');
+  await claim({ salonId, code });
 }

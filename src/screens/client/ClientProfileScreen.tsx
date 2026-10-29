@@ -11,16 +11,20 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { CommonActions } from '@react-navigation/native';
+import { navigateToRoot } from '@/navigation/navigateToRoot';
 import * as Notifications from 'expo-notifications';
 import {
   Bell, LogOut, Phone, User as UserIcon, Pencil, Check, X, Camera, ImagePlus,
   Mail, Cake, Scissors, AlertTriangle, Trash2, ChevronDown, ChevronUp,
+  Lock, ChevronRight, Smartphone,
 } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { Card } from '@/components/Card';
 import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/Button';
 import { LanguagePicker } from '@/components/LanguagePicker';
+import { LegalLinks } from '@/components/LegalLinks';
+import { humanizeError } from '@/lib/humanizeError';
 import { useT } from '@/i18n';
 import { storage } from '@/services/storage';
 import {
@@ -49,7 +53,8 @@ export function ClientProfileScreen() {
   const [savingName, setSavingName] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
 
-  // Infos personnelles (email, date naissance)
+  // Infos personnelles (nom, email, date naissance)
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [birthdate, setBirthdate] = useState(''); // YYYY-MM-DD
   const [savingPersonal, setSavingPersonal] = useState(false);
@@ -76,6 +81,7 @@ export function ClientProfileScreen() {
         setCustomer(c);
         setPushEnabled(c?.pushEnabled !== false && !!c?.pushToken);
         if (c) {
+          setLastName(c.lastName ?? '');
           setEmail(c.email ?? '');
           setBirthdate(c.birthdate ?? '');
           setCutNote(c.preferences?.cutNote ?? '');
@@ -113,11 +119,12 @@ export function ClientProfileScreen() {
     setSavingPersonal(true);
     try {
       await updateCustomerPersonalInfo(customer.id, {
+        lastName: lastName.trim() || null,
         email: email.trim() || null,
         birthdate: birthdate.trim() || null,
       });
     } catch (e: any) {
-      Alert.alert(t('common.error'), e.message);
+      Alert.alert(t('common.error'), humanizeError(e, t));
     } finally {
       setSavingPersonal(false);
     }
@@ -135,7 +142,7 @@ export function ClientProfileScreen() {
         },
       });
     } catch (e: any) {
-      Alert.alert(t('common.error'), e.message);
+      Alert.alert(t('common.error'), humanizeError(e, t));
     } finally {
       setSavingPrefs(false);
     }
@@ -155,18 +162,13 @@ export function ClientProfileScreen() {
             setDeleting(true);
             try {
               await requestAccountDeletion(customer.id);
-              // Sign out + retour à l'écran de sélection de rôle.
+              // Sign out + retour à la racine de l'app courante.
               await signOut();
               await storage.resetAll();
               await clearMode();
-              nav.dispatch(
-                CommonActions.reset({
-                  index: 0,
-                  routes: [{ name: 'RoleSelection' as never }],
-                }),
-              );
+              navigateToRoot(nav);
             } catch (e: any) {
-              Alert.alert(t('common.error'), e.message);
+              Alert.alert(t('common.error'), humanizeError(e, t));
             } finally {
               setDeleting(false);
             }
@@ -181,7 +183,7 @@ export function ClientProfileScreen() {
     try {
       await cancelAccountDeletion(customer.id);
     } catch (e: any) {
-      Alert.alert(t('common.error'), e.message);
+      Alert.alert(t('common.error'), humanizeError(e, t));
     }
   };
 
@@ -198,7 +200,7 @@ export function ClientProfileScreen() {
         await setCustomerPhoto(customer.id, photo);
       }
     } catch (e: any) {
-      Alert.alert(t('common.error'), e.message);
+      Alert.alert(t('common.error'), humanizeError(e, t));
     }
   };
 
@@ -214,7 +216,7 @@ export function ClientProfileScreen() {
       await setCustomerName(customer.id, v);
       setEditingName(false);
     } catch (e: any) {
-      Alert.alert(t('common.error'), e.message);
+      Alert.alert(t('common.error'), humanizeError(e, t));
     } finally {
       setSavingName(false);
     }
@@ -241,7 +243,7 @@ export function ClientProfileScreen() {
       }
       await setCustomerPushEnabled(customer.id, enabled);
     } catch (e: any) {
-      Alert.alert(t('common.error'), e.message);
+      Alert.alert(t('common.error'), humanizeError(e, t));
       setPushEnabled(!enabled);
     }
   };
@@ -256,12 +258,7 @@ export function ClientProfileScreen() {
           await signOut();
           await storage.resetAll();
           await clearMode();
-          nav.dispatch(
-            CommonActions.reset({
-              index: 0,
-              routes: [{ name: 'RoleSelection' as never }],
-            }),
-          );
+          navigateToRoot(nav);
         },
       },
     ]);
@@ -357,13 +354,28 @@ export function ClientProfileScreen() {
         icon={<Mail color={colors.primary} size={20} strokeWidth={2.2} />}
         title={t('client.profile.personalInfo')}
         summary={
-          email || birthdate
+          lastName || email || birthdate
             ? t('client.profile.personalInfo.summaryFilled')
             : t('client.profile.personalInfo.summaryEmpty')
         }
         open={infoOpen}
         onToggle={() => setInfoOpen((v) => !v)}
       >
+        <View style={styles.fieldRow}>
+          <UserIcon color={colors.textMuted} size={18} strokeWidth={2} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.fieldLabel}>{t('client.profile.fieldLastName')}</Text>
+            <TextInput
+              value={lastName}
+              onChangeText={setLastName}
+              placeholder={t('client.profile.lastNamePlaceholder')}
+              placeholderTextColor={colors.textDim}
+              autoCapitalize="words"
+              style={styles.plainInput}
+              maxLength={60}
+            />
+          </View>
+        </View>
         <View style={styles.fieldRow}>
           <Mail color={colors.textMuted} size={18} strokeWidth={2} />
           <View style={{ flex: 1 }}>
@@ -466,6 +478,43 @@ export function ClientProfileScreen() {
         />
       </CollapsibleCard>
 
+      <Text style={styles.sectionTitle}>{t('client.profile.security')}</Text>
+      <Card>
+        <Pressable
+          onPress={() => (nav as any).navigate('ClientChangePhone')}
+          style={styles.settingRow}
+        >
+          <Smartphone color={colors.primary} size={20} strokeWidth={2} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.settingTitle}>
+              {t('client.profile.changePhoneTitle')}
+            </Text>
+            <Text style={styles.settingHint}>
+              {customer.phone}
+            </Text>
+          </View>
+          <ChevronRight color={colors.textDim} size={20} strokeWidth={2} />
+        </Pressable>
+
+        <View style={styles.divider} />
+
+        <Pressable
+          onPress={() => (nav as any).navigate('ClientPinSetup')}
+          style={styles.settingRow}
+        >
+          <Lock color={colors.primary} size={20} strokeWidth={2} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.settingTitle}>
+              {t('client.profile.pinTitle')}
+            </Text>
+            <Text style={styles.settingHint}>
+              {t('client.profile.pinHint')}
+            </Text>
+          </View>
+          <ChevronRight color={colors.textDim} size={20} strokeWidth={2} />
+        </Pressable>
+      </Card>
+
       <Text style={styles.sectionTitle}>{t('client.profile.notifications')}</Text>
       <Card>
         <View style={styles.settingRow}>
@@ -485,6 +534,11 @@ export function ClientProfileScreen() {
 
       <Text style={styles.sectionTitle}>{t('client.profile.language')}</Text>
       <LanguagePicker />
+
+      <Text style={styles.sectionTitle}>{t('legal.section')}</Text>
+      <Card>
+        <LegalLinks variant="list" />
+      </Card>
 
       <Text style={styles.sectionTitle}>{t('client.profile.stats')}</Text>
       <Card>
@@ -677,6 +731,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: spacing.sm,
   },
   settingTitle: {
     ...typography.bodyBold,

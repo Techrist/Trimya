@@ -8,10 +8,11 @@ import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { storage } from '@/services/storage';
 import { subscribeCustomer } from '@/services/customers';
+import { subscribeSalon } from '@/services/salons';
 import { buildQrPayload, QR_VALIDITY_MS } from '@/lib/qr';
 import { useT } from '@/i18n';
 import { colors, spacing, typography, REWARD_THRESHOLD } from '@/theme';
-import { Customer } from '@/types';
+import { Customer, Salon, getSalonRewardThreshold } from '@/types';
 import { RootStackParamList } from '@/navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'ClientQr'>;
@@ -20,17 +21,28 @@ export function ClientQrScreen() {
   const nav = useNavigation<Nav>();
   const { t } = useT();
   const [customer, setCustomer] = useState<Customer | null>(null);
+  const [salon, setSalon] = useState<Salon | null>(null);
   // Tick déclenche un re-render toutes les 30s pour régénérer le QR.
   const [, setTick] = useState(0);
 
   useEffect(() => {
-    let unsub: (() => void) | undefined;
+    let unsubC: (() => void) | undefined;
+    let unsubS: (() => void) | undefined;
     (async () => {
       const id = await storage.getCustomerId();
       if (!id) return;
-      unsub = subscribeCustomer(id, setCustomer);
+      unsubC = subscribeCustomer(id, (c) => {
+        setCustomer(c);
+        if (c?.salonId) {
+          unsubS?.();
+          unsubS = subscribeSalon(c.salonId, setSalon);
+        }
+      });
     })();
-    return () => unsub?.();
+    return () => {
+      unsubC?.();
+      unsubS?.();
+    };
   }, []);
 
   // QR rotation : on régénère un payload toutes les 30s pour qu'un
@@ -54,7 +66,9 @@ export function ClientQrScreen() {
   // v=3 : payload signé temporellement (exp = now + 60s).
   // Le scanner valide la fraîcheur via lib/qr.ts → validateQrFreshness.
   const qrPayload = buildQrPayload(customer.id, customer.salonId);
-  const isReward = customer.currentCount >= REWARD_THRESHOLD;
+  // Seuil dynamique du salon (avec fallback constant).
+  const rewardThreshold = getSalonRewardThreshold(salon, REWARD_THRESHOLD);
+  const isReward = customer.currentCount >= rewardThreshold;
 
   return (
     <Screen padded centered>
@@ -72,7 +86,7 @@ export function ClientQrScreen() {
         </View>
         <Text style={styles.name}>{customer.name || t('client.qr.fallbackName')}</Text>
         <Text style={styles.count}>
-          {Math.min(customer.currentCount, REWARD_THRESHOLD)}/{REWARD_THRESHOLD}
+          {Math.min(customer.currentCount, rewardThreshold)}/{rewardThreshold}
         </Text>
       </Card>
 

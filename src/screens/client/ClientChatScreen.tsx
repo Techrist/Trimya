@@ -8,6 +8,7 @@ import { StatusBar } from 'expo-status-bar';
 import { ChatView } from '@/components/ChatView';
 import { Avatar } from '@/components/Avatar';
 import { useT } from '@/i18n';
+import { humanizeError } from '@/lib/humanizeError';
 import { storage } from '@/services/storage';
 import { getCustomer } from '@/services/customers';
 import { getSalon } from '@/services/salons';
@@ -86,7 +87,7 @@ export function ClientChatScreen() {
         senderId: customer.id,
       });
     } catch (e: any) {
-      Alert.alert(t('common.error'), e.message || t('salon.chat.errorSend'));
+      Alert.alert(t('common.error'), humanizeError(e, t));
     }
   };
 

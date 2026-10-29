@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<!--
+  Template HTML custom pour la cible web Expo (Trimya PWA).
+
+  Expo utilise ce fichier à la place de son template par défaut quand il
+  détecte `web/index.html`. On y injecte :
+    - Les meta PWA (viewport, theme-color, apple-mobile-web-app-*)
+    - Le lien vers le manifest.webmanifest
+    - Les icônes Apple (iOS n'utilise PAS les icônes du manifest, il faut
+      les déclarer explicitement via <link rel="apple-touch-icon">)
+    - L'enregistrement du service worker racine (sw.js) — on l'enregistre
+      au niveau index.html plutôt qu'en TS pour qu'il soit actif dès le
+      premier rendu, avant que le bundle JS soit chargé.
+    - Un splash screen natif (background sombre) pour éviter le flash blanc.
+-->
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Trimya — Ta carte de fidélité coiffeur</title>
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no"
+  />
+  <meta name="description" content="Ta carte de fidélité coiffeur dans ton téléphone. 4 coupes payées, la 5ᵉ offerte." />
+  <meta name="theme-color" content="#0A0A0A" />
+  <meta name="color-scheme" content="dark" />
+
+  <!-- Fallback iOS Safari : standalone mode + couleur status bar -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Trimya" />
+  <meta name="mobile-web-app-capable" content="yes" />
+
+  <!-- Icônes Apple : iOS ignore manifest.icons, il faut déclarer ici. -->
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192.png" />
+  <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-192.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png" />
+  <link rel="shortcut icon" href="/favicon.ico" />
+
+  <!-- PWA manifest -->
+  <link rel="manifest" href="/manifest.webmanifest" />
+
+  <style>
+    html, body, #root {
+      height: 100%;
+      margin: 0;
+      background: #0A0A0A;
+      color: #FFFFFF;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      overscroll-behavior-y: none;
+    }
+    /* Splash minimal avant que le bundle JS prenne la main. Évite
+       le flash blanc + donne une indication que l'app charge. */
+    #splash {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 16px;
+      background: #0A0A0A;
+      z-index: 9999;
+      transition: opacity 300ms ease-out;
+    }
+    #splash.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    #splash .logo {
+      width: 128px;
+      height: 128px;
+      border-radius: 24px;
+      object-fit: contain;
+      /* Fallback si l'image met plus d'un cycle à charger : un fond
+         orange discret suggère l'identité Trimya le temps du chargement. */
+      background: #0A0A0A;
+    }
+    #splash .tagline {
+      font-size: 14px;
+      color: #999;
+      letter-spacing: 2px;
+    }
+  </style>
+</head>
+<body>
+  <div id="splash">
+    <img
+      class="logo"
+      src="/icons/icon-192.png"
+      alt="Trimya"
+      width="128"
+      height="128"
+    />
+    <div class="tagline">TRIMYA</div>
+  </div>
+  <div id="root"></div>
+
+  <script>
+    // Enregistrement du service worker racine. On n'enregistre PAS le
+    // firebase-messaging-sw.js ici — il est enregistré à la demande par
+    // src/services/push.web.ts, quand l'utilisateur accepte les notifs.
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('/sw.js').catch(function (err) {
+          // On n'empêche jamais l'app de se charger si le SW rate.
+          console.warn('[sw] registration failed', err);
+        });
+      });
+    }
+
+    // Masque le splash quand le bundle React a monté quelque chose dans #root.
+    // On observe les mutations plutôt que de dépendre d'un hook interne.
+    var observer = new MutationObserver(function () {
+      var root = document.getElementById('root');
+      if (root && root.children.length > 0) {
+        var splash = document.getElementById('splash');
+        if (splash) {
+          splash.classList.add('hidden');
+          setTimeout(function () { splash.remove(); }, 400);
+        }
+        observer.disconnect();
+      }
+    });
+    observer.observe(document.getElementById('root'), { childList: true });
+  </script>
+</body>
+</html>

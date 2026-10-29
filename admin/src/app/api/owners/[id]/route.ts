@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth-server";
 import { adminDb } from "@/lib/firebase-admin";
+import { classifyError, logServerError } from "@/lib/api-errors";
 import {
   DAY_MS,
   getInheritedSalonPlan,
@@ -299,8 +300,9 @@ export async function PATCH(
       }
     }
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : "unknown_error";
-    const status = msg === "salon_already_owned" ? 409 : 500;
-    return NextResponse.json({ error: msg }, { status });
+    logServerError("owners.patch", e);
+    const code = classifyError(e);
+    const status = code === "salon_already_owned" ? 409 : 500;
+    return NextResponse.json({ error: code }, { status });
   }
 }

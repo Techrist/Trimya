@@ -9,6 +9,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { useNavigation, CommonActions } from '@react-navigation/native';
+import { navigateToRoot } from '@/navigation/navigateToRoot';
 import * as Notifications from 'expo-notifications';
 import {
   Bell,
@@ -27,9 +28,12 @@ import { Card } from '@/components/Card';
 import { Logo } from '@/components/Logo';
 import { Avatar } from '@/components/Avatar';
 import { LanguagePicker } from '@/components/LanguagePicker';
+import { LegalLinks } from '@/components/LegalLinks';
+import { humanizeError } from '@/lib/humanizeError';
 import { SalonPlanCard } from '@/components/SalonPlanCard';
 import { OpeningHoursEditor } from '@/components/OpeningHoursEditor';
 import { SubscriptionPriceEditor } from '@/components/SubscriptionPriceEditor';
+import { RewardThresholdEditor } from '@/components/RewardThresholdEditor';
 import { LockedFeatureCard } from '@/components/LockedFeatureCard';
 import { useSalonPlan } from '@/hooks/useSalonPlan';
 import { useT } from '@/i18n';
@@ -103,7 +107,7 @@ export function SalonProfileScreen() {
         setSalon(refreshed);
       }
     } catch (e: any) {
-      Alert.alert(t('common.error'), e.message);
+      Alert.alert(t('common.error'), humanizeError(e, t));
     }
   };
 
@@ -120,12 +124,7 @@ export function SalonProfileScreen() {
             await signOut();
             await storage.resetAll();
             await clearMode();
-            nav.dispatch(
-              CommonActions.reset({
-                index: 0,
-                routes: [{ name: 'RoleSelection' as never }],
-              }),
-            );
+            navigateToRoot(nav);
           },
         },
       ],
@@ -215,6 +214,16 @@ export function SalonProfileScreen() {
         )
       ) : null}
 
+      <Text style={styles.sectionTitle}>{t('reward.threshold.sectionTitle')}</Text>
+      {salonId ? (
+        <RewardThresholdEditor
+          salonId={salonId}
+          currentThreshold={salon?.rewardThreshold ?? 4}
+          effectiveThreshold={salon?.effectiveRewardThreshold}
+          overriddenByOwner={!!salon?.loyaltySharedWithOwner}
+        />
+      ) : null}
+
       <Text style={styles.sectionTitle}>{t('salon.profile.overview')}</Text>
       {stats ? (
         <Card>
@@ -277,6 +286,11 @@ export function SalonProfileScreen() {
 
       <Text style={styles.sectionTitle}>{t('salon.profile.language')}</Text>
       <LanguagePicker />
+
+      <Text style={styles.sectionTitle}>{t('legal.section')}</Text>
+      <Card>
+        <LegalLinks variant="list" />
+      </Card>
 
       <Pressable onPress={handleExit} style={styles.exitBtn}>
         <LogOut color={colors.danger} size={18} strokeWidth={2.2} />

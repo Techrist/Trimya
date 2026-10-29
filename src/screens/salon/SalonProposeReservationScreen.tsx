@@ -19,6 +19,7 @@ import { DateSlotPicker, TimeSlotPicker } from '@/components/SlotPickers';
 import { getCustomer } from '@/services/customers';
 import { getReservation, updateReservationStatus } from '@/services/reservations';
 import { useT } from '@/i18n';
+import { humanizeError } from '@/lib/humanizeError';
 import { colors, radius, spacing, typography } from '@/theme';
 import { Customer, Reservation } from '@/types';
 import { ReservationsStackParamList } from '@/navigation/types';
@@ -75,7 +76,7 @@ export function SalonProposeReservationScreen() {
       });
       nav.goBack();
     } catch (e: any) {
-      Alert.alert(t('common.error'), e.message || t('salon.propose.errorSend'));
+      Alert.alert(t('common.error'), humanizeError(e, t));
     } finally {
       setSubmitting(false);
     }

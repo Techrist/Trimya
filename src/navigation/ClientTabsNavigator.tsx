@@ -8,7 +8,7 @@ import {
   ClientTabParamList,
   ReservationsStackParamList,
 } from './types';
-import { colors, typography } from '@/theme';
+import { colors, radius, typography } from '@/theme';
 import { useEffect, useState } from 'react';
 import { useClientUnreadCount } from '@/hooks/useClientUnreadCount';
 import { useForegroundMessageAlerts } from '@/hooks/useForegroundMessageAlerts';
@@ -139,6 +139,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderTopColor: colors.border,
     borderTopWidth: 1,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    // overflow:'hidden' garantit que la couleur de fond respecte les coins
+    // arrondis sur Android (sinon la `backgroundColor` déborde en angle droit).
+    overflow: 'hidden',
     height: 68,
     paddingBottom: 10,
     paddingTop: 8,

@@ -43,6 +43,31 @@ export async function updateBarber(
   await updateDoc(doc(db, 'barbers', id), update);
 }
 
+/**
+ * Transfère un coiffeur d'un salon source vers un autre salon de la même
+ * chaîne (= même owner). Réservé au propriétaire connecté en mode owner :
+ *  - La rule Firestore exige isOwner(source) ET isOwner(destination),
+ *    ce qui garantit côté serveur que les deux salons partagent le même
+ *    ownerId. Inutile de re-vérifier côté client.
+ *  - L'historique des coupes (cuts.salonId) reste inchangé : les stats
+ *    par établissement gardent leur cohérence historique. Le coiffeur,
+ *    lui, bascule pour les nouvelles coupes.
+ *  - L'agrégat de notes (cutReviews indexé par barberId) suit automatiquement
+ *    le coiffeur — sa réputation voyage avec lui.
+ */
+export async function transferBarber(params: {
+  barberId: string;
+  fromSalonId: string;
+  toSalonId: string;
+}): Promise<void> {
+  if (params.fromSalonId === params.toSalonId) {
+    throw new Error('transfer_same_salon');
+  }
+  await updateDoc(doc(db, 'barbers', params.barberId), {
+    salonId: params.toSalonId,
+  });
+}
+
 export async function getBarber(id: string): Promise<Barber | null> {
   const snap = await getDoc(doc(db, 'barbers', id));
   if (!snap.exists()) return null;

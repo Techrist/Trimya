@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ChevronRight, Star, CalendarClock } from 'lucide-react-native';
+import { ChevronRight, Star, CalendarClock, Home } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { Card } from '@/components/Card';
 import { LockedFeature } from '@/components/LockedFeature';
@@ -96,6 +96,25 @@ export function SalonReservationsScreen() {
             : t('salon.reservations.noPending')}
         </Text>
       </View>
+
+      {/* Accès rapide aux demandes domicile (feature Pro) */}
+      <Pressable
+        onPress={() => nav.navigate('SalonHomeRequests')}
+        style={styles.homeRequestsCta}
+      >
+        <View style={styles.homeRequestsIconWrap}>
+          <Home color={colors.primary} size={20} strokeWidth={2.2} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.homeRequestsTitle}>
+            {t('salon.reservations.homeRequestsCta')}
+          </Text>
+          <Text style={styles.homeRequestsSub}>
+            {t('salon.reservations.homeRequestsSub')}
+          </Text>
+        </View>
+        <ChevronRight color={colors.textDim} size={20} strokeWidth={2} />
+      </Pressable>
 
       <View style={styles.filters}>
         {FILTERS.map((f) => {
@@ -257,6 +276,36 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
     textTransform: 'uppercase',
     letterSpacing: 1.2,
+  },
+  homeRequestsCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginHorizontal: spacing.lg,
+    marginVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 87, 34, 0.3)',
+  },
+  homeRequestsIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 87, 34, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  homeRequestsTitle: {
+    ...typography.bodyBold,
+    color: colors.text,
+  },
+  homeRequestsSub: {
+    ...typography.caption,
+    color: colors.textMuted,
+    marginTop: 2,
   },
   filters: {
     flexDirection: 'row',

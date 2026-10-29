@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth-server";
 import { createOwner } from "@/lib/owners";
+import { classifyError, logServerError } from "@/lib/api-errors";
 
 const CreateOwnerSchema = z.object({
   email: z.string().email(),
@@ -31,10 +32,9 @@ export async function POST(req: NextRequest) {
     const { uid, tempPassword } = await createOwner(parsed.data);
     return NextResponse.json({ ok: true, uid, tempPassword });
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : "unknown_error";
-    if (msg.includes("auth/email-already-exists")) {
-      return NextResponse.json({ error: "email_already_used" }, { status: 409 });
-    }
-    return NextResponse.json({ error: msg }, { status: 500 });
+    logServerError("owners.create", e);
+    const code = classifyError(e);
+    const status = code === "email_already_used" ? 409 : 500;
+    return NextResponse.json({ error: code }, { status });
   }
 }
