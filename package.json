@@ -13,7 +13,14 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "type-check": "tsc --noEmit"
+    "web:pro": "cross-env TRIMYA_APP=pro expo start --web",
+    "type-check": "tsc --noEmit",
+    "build:web:client": "node scripts/build-web.js client",
+    "build:web:pro": "node scripts/build-web.js pro",
+    "build:web:all": "npm run build:web:client && npm run build:web:pro",
+    "deploy:client": "npm run build:web:client && firebase deploy --only hosting:client",
+    "deploy:pro": "npm run build:web:pro && firebase deploy --only hosting:pro",
+    "deploy:all": "npm run build:web:all && firebase deploy --only hosting"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
@@ -53,6 +60,7 @@
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@types/react": "~19.1.10",
+    "cross-env": "^10.1.0",
     "typescript": "~5.9.2"
   },
   "private": true

@@ -90,6 +90,11 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(req.url);
 
+  // Skip tout ce qui n'est pas http(s) : chrome-extension://,
+  // moz-extension://, data:, blob:, etc. L'API Cache refuse de stocker
+  // ces schemes et throw sinon.
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
+
   // 1) Hôtes exclus → pass-through réseau direct, pas de cache.
   if (NEVER_CACHE_HOSTS.some((h) => url.hostname.includes(h))) {
     return;

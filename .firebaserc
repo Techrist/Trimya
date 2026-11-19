@@ -1,5 +1,17 @@
 {
   "projects": {
     "default": "trimya-68ae2"
+  },
+  "targets": {
+    "trimya-68ae2": {
+      "hosting": {
+        "client": [
+          "trimya-68ae2"
+        ],
+        "pro": [
+          "trimya-pro"
+        ]
+      }
+    }
   }
 }

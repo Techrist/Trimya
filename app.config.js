@@ -32,8 +32,39 @@
  *   eas build --profile production-pro    --platform all
  */
 
-const TARGET = process.env.TRIMYA_APP === 'pro' ? 'pro' : 'client';
+// ─── Détection de la cible de build (client | pro) ───────────
+//
+// On lit la cible par 2 sources, dans l'ordre :
+//   1) Fichier `.trimya-build-target` à la racine (ex: contient "pro").
+//      C'est la source la PLUS fiable : Expo spawn plusieurs sous-processus
+//      (Metro, expo-constants manifest) qui n'héritent pas forcément de
+//      `process.env` sous Windows → une variable d'env se perd en route,
+//      mais un fichier reste lisible par tout le monde.
+//   2) Variable d'env `TRIMYA_APP` en fallback (dev local avec cross-env).
+//   3) Défaut : `client`.
+//
+// Les scripts `scripts/build-web.js` écrivent le fichier AVANT de spawn
+// `expo export` et le suppriment APRÈS, pour que la source de vérité soit
+// toujours cohérente avec le build en cours.
+const fs = require('fs');
+const path = require('path');
+function readTargetFromFile() {
+  try {
+    const file = path.join(__dirname, '.trimya-build-target');
+    if (!fs.existsSync(file)) return null;
+    return fs.readFileSync(file, 'utf8').trim().toLowerCase();
+  } catch {
+    return null;
+  }
+}
+const rawTrimyaApp = (readTargetFromFile() || process.env.TRIMYA_APP || '')
+  .replace(/^["']|["']$/g, '')
+  .trim()
+  .toLowerCase();
+const TARGET = rawTrimyaApp === 'pro' ? 'pro' : 'client';
 const isPro = TARGET === 'pro';
+
+console.log(`[trimya] Building target: ${TARGET.toUpperCase()}`);
 
 // ── Tables de correspondance ─────────────────────────────────
 const NAMES = {

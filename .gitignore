@@ -1,7 +1,10 @@
 node_modules/
 .expo/
 dist/
+dist-client/
+dist-pro/
 web-build/
+.trimya-build-target
 *.log
 .env
 .env.local
@@ -30,3 +33,4 @@ GoogleService-Info.plist
 
 # Firebase CLI cache local
 .firebase/
+.trimya-build-target

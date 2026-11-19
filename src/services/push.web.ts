@@ -165,3 +165,33 @@ export function subscribeForegroundMessages(
     unsub?.();
   };
 }
+
+// ─── Alias d'API alignés sur `push.ts` (natif) ─────────────────
+//
+// Metro remplace `push.ts` par CE fichier côté web → tous les écrans qui
+// importent `registerPushTokenForCustomer`, `registerSalonKioskPushToken`
+// ou `sendPush` depuis `@/services/push` doivent trouver ces noms ici,
+// sinon on obtient `TypeError: registerPushTokenForCustomer is not a
+// function` au premier appel. On réexpose donc les mêmes signatures que
+// la version native, en déléguant aux implémentations FCM Web.
+
+export const registerPushTokenForCustomer = registerWebPushForCustomer;
+export const registerSalonKioskPushToken = registerWebPushForSalonKiosk;
+
+/**
+ * Pas d'envoi de push depuis le navigateur (ce serait un risque de
+ * fuite de secrets si on exposait un token admin FCM côté client). Les
+ * push se déclenchent via Cloud Functions. On expose quand même la
+ * fonction pour que l'import ne casse pas ; elle no-op silencieusement
+ * et retourne une Promise résolue.
+ */
+export async function sendPush(_params: {
+  token: string;
+  title: string;
+  body: string;
+  data?: Record<string, unknown>;
+}): Promise<void> {
+  // Volontairement no-op côté web — l'envoi se fait depuis les
+  // Cloud Functions. L'appeler côté client est un bug applicatif, pas
+  // une raison de crasher l'app en démo salon.
+}
