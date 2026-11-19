@@ -41,6 +41,46 @@ export async function signInAsOwner(
   return { user: cred.user, owner };
 }
 
+/**
+ * Récupère l'owner associé à un utilisateur fraîchement connecté via magic
+ * link email. Deux stratégies en cascade :
+ *  1. Lookup direct par uid — cas nominal pour un owner déjà existant dont
+ *     le doc owners/{uid} a été créé par l'admin avec le uid du compte Auth.
+ *  2. Lookup par email — fallback si l'owner existe mais que son doc Firestore
+ *     a été créé avec un id custom différent du uid Auth. Dans ce cas on NE
+ *     remonte PAS automatiquement l'owner — on exige un lien explicite pour
+ *     éviter les hijacks (un attaquant qui créerait un compte avec l'email
+ *     d'un owner existant prendrait sinon le contrôle).
+ *
+ * Si rien n'est trouvé : l'utilisateur est bien authentifié Firebase, mais
+ * n'est pas (encore) un owner enregistré. Le caller doit afficher un message
+ * clair : "Ton compte n'est pas encore activé comme propriétaire".
+ */
+export async function findOwnerForAuthUser(
+  user: User,
+): Promise<Owner | null> {
+  // 1) Lookup par uid (cas nominal)
+  const byUid = await getOwner(user.uid);
+  if (byUid) return byUid;
+
+  // 2) Si l'owner existe par email mais avec un id différent, on log mais on
+  //    ne retourne pas — l'admin doit relier manuellement (ou prévoir une
+  //    Cloud Function qui le fasse après MFA/preuve additionnelle).
+  if (user.email) {
+    const q = query(
+      collection(db, 'owners'),
+      where('email', '==', user.email.toLowerCase()),
+    );
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      console.warn(
+        '[owners] Owner trouvé par email mais uid différent — contactez l\'admin pour relier.',
+      );
+    }
+  }
+  return null;
+}
+
 export async function getOwner(ownerId: string): Promise<Owner | null> {
   // Note : la lecture passe par onSnapshot dans le hook pour avoir le live.
   // Cette version "one-shot" est utilisée juste après le login.

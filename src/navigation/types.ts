@@ -11,8 +11,13 @@ export type RootStackParamList = {
   ProRoleSelection: undefined;
 
   // Client flow (Trimya uniquement)
+  // PhoneSignup/OtpVerify conservés pour compat ascendante (deep links,
+  // bundles natifs non-PWA). En PWA le flux par défaut est EmailSignup →
+  // EmailLinkSent → ClientName/ClientTabs (après clic sur le magic link).
   PhoneSignup: undefined;
   OtpVerify: { phone: string };
+  EmailSignup: undefined;
+  EmailLinkSent: { email: string };
   ClientName: undefined;
   ClientTabs: undefined;
   ClientQr: undefined;

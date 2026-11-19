@@ -12,5 +12,13 @@
   "include": [
     "**/*.ts",
     "**/*.tsx"
+  ],
+  "exclude": [
+    "admin",
+    "dist",
+    "dist-client",
+    "dist-pro",
+    "node_modules",
+    "functions"
   ]
 }

@@ -135,6 +135,26 @@ export const fr = {
   'auth.otp.tooShortHint': 'Entre le code reçu par SMS.',
   'auth.otp.invalid': 'Code invalide',
 
+  // ── Email magic link (Client + Pro) ───────────────
+  'auth.email.title': 'Ton email',
+  'auth.email.subtitle': 'On t\'envoie un lien magique pour te connecter en un clic — sans mot de passe.',
+  'auth.email.label': 'Adresse email',
+  'auth.email.placeholder': 'nom@exemple.com',
+  'auth.email.send': 'Recevoir le lien',
+  'auth.email.invalid': 'Email invalide',
+  'auth.email.invalidHint': 'Vérifie l\'orthographe de ton adresse.',
+  'auth.email.errorSend': 'Impossible d\'envoyer le lien.',
+
+  'auth.emailSent.title': 'Vérifie ta boîte email',
+  'auth.emailSent.subtitle': 'On vient d\'envoyer un lien magique à {{email}}. Clique dessus pour te connecter.',
+  'auth.emailSent.hint1': 'Le lien est valide 1 heure.',
+  'auth.emailSent.hint2': 'Pense à vérifier le dossier spam.',
+  'auth.emailSent.hint3': 'Clique depuis cet appareil pour une connexion automatique.',
+  'auth.emailSent.resend': 'Renvoyer le lien',
+  'auth.emailSent.resent': 'Lien renvoyé — vérifie ta boîte.',
+  'auth.emailSent.changeEmail': 'Utiliser une autre adresse',
+  'auth.emailSent.needEmail': 'Entre à nouveau ton email pour terminer la connexion.',
+
   'auth.name.title': 'Comment t\'appeler ?',
   'auth.name.subtitle': 'Ton coiffeur te reconnaîtra plus vite.',
   'auth.name.label': 'Prénom',
@@ -874,6 +894,8 @@ export const fr = {
   'owner.signin.invalidCredentials': 'Email ou mot de passe incorrect.',
   'owner.signin.tooManyAttempts': 'Trop de tentatives. Réessaie dans quelques minutes.',
   'owner.signin.legal': 'Le mode propriétaire est réservé aux comptes Entreprise créés par Trimya.',
+  'owner.signin.methodMagicLink': 'Lien magique',
+  'owner.signin.methodPassword': 'Mot de passe',
 
   'owner.tab.home': 'Accueil',
   'owner.tab.salons': 'Mes salons',

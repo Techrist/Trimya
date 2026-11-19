@@ -81,6 +81,26 @@ export const en: typeof fr = {
   'auth.otp.tooShortHint': 'Enter the code received by SMS.',
   'auth.otp.invalid': 'Invalid code',
 
+  // ── Email magic link (Client + Pro) ───────────────
+  'auth.email.title': 'Your email',
+  'auth.email.subtitle': 'We\'ll send you a magic link to sign in with one click — no password needed.',
+  'auth.email.label': 'Email address',
+  'auth.email.placeholder': 'name@example.com',
+  'auth.email.send': 'Send me the link',
+  'auth.email.invalid': 'Invalid email',
+  'auth.email.invalidHint': 'Check the spelling of your address.',
+  'auth.email.errorSend': 'Could not send the link.',
+
+  'auth.emailSent.title': 'Check your inbox',
+  'auth.emailSent.subtitle': 'We just sent a magic link to {{email}}. Click it to sign in.',
+  'auth.emailSent.hint1': 'The link is valid for 1 hour.',
+  'auth.emailSent.hint2': 'Check your spam folder if needed.',
+  'auth.emailSent.hint3': 'Click from this device for an automatic sign-in.',
+  'auth.emailSent.resend': 'Resend the link',
+  'auth.emailSent.resent': 'Link resent — check your inbox.',
+  'auth.emailSent.changeEmail': 'Use a different address',
+  'auth.emailSent.needEmail': 'Enter your email again to finish signing in.',
+
   'auth.name.title': 'What should we call you?',
   'auth.name.subtitle': 'Your barber will recognize you faster.',
   'auth.name.label': 'First name',
@@ -814,6 +834,8 @@ export const en: typeof fr = {
   'owner.signin.invalidCredentials': 'Invalid email or password.',
   'owner.signin.tooManyAttempts': 'Too many attempts. Try again in a few minutes.',
   'owner.signin.legal': 'Owner mode is reserved for Enterprise accounts created by Trimya.',
+  'owner.signin.methodMagicLink': 'Magic link',
+  'owner.signin.methodPassword': 'Password',
 
   'owner.tab.home': 'Home',
   'owner.tab.salons': 'My salons',

@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, View, Text } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useApp } from '@/contexts/AppContext';
 import { isClientApp, isProApp } from '@/lib/appTarget';
 import { hasPin } from '@/services/clientPin';
+import { findOwnerForAuthUser } from '@/services/owners';
+import { storage } from '@/services/storage';
 import { RootStackParamList } from './types';
-import { colors } from '@/theme';
+import { colors, spacing, typography } from '@/theme';
+import { MagicLinkNeedEmailScreen } from '@/screens/MagicLinkNeedEmailScreen';
 
 import { OnboardingScreen } from '@/screens/OnboardingScreen';
 import { RoleSelectionScreen } from '@/screens/RoleSelectionScreen';
@@ -14,6 +17,8 @@ import { ProRoleSelectionScreen } from '@/screens/ProRoleSelectionScreen';
 // ── Écrans Client (chargés seulement dans Trimya) ──────────────
 import { PhoneSignupScreen } from '@/screens/client/PhoneSignupScreen';
 import { OtpVerifyScreen } from '@/screens/client/OtpVerifyScreen';
+import { EmailSignupScreen } from '@/screens/client/EmailSignupScreen';
+import { EmailLinkSentScreen } from '@/screens/client/EmailLinkSentScreen';
 import { ClientNameScreen } from '@/screens/client/ClientNameScreen';
 import { ClientQrScreen } from '@/screens/client/ClientQrScreen';
 import { ClientHistoryScreen } from '@/screens/client/ClientHistoryScreen';
@@ -51,22 +56,27 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
  * (c'est le compromis de l'approche build-targeting léger vs monorepo).
  */
 export function RootNavigator() {
-  const { ready, mode, onboarded, user, salonId, ownerId } = useApp();
+  const {
+    ready,
+    mode,
+    onboarded,
+    user,
+    salonId,
+    ownerId,
+    setOwnerId,
+    setMode,
+    magicLinkStatus,
+    magicLinkError,
+    magicLinkTarget,
+  } = useApp();
   const isClient = isClientApp();
   const isPro = isProApp();
 
   // ─── Vérification PIN (Trimya Client uniquement) ───────────
-  // Si un PIN a été configuré localement par le client, on intercepte
-  // le boot pour afficher l'écran de déverrouillage AVANT ClientTabs.
-  // pinChecked: false → on attend le résultat (loader). true → on a la
-  // réponse et pinRequired indique s'il faut afficher PinUnlock.
   const [pinChecked, setPinChecked] = useState(!isClient);
   const [pinRequired, setPinRequired] = useState(false);
   useEffect(() => {
     if (!isClient || !ready || !user) {
-      // Pas en Trimya Client OU pas encore prêt OU pas connecté →
-      // pas de PIN à vérifier (le PIN ne sert que pour les sessions
-      // déjà authentifiées).
       setPinRequired(false);
       setPinChecked(true);
       return;
@@ -77,16 +87,74 @@ export function RootNavigator() {
     });
   }, [isClient, ready, user]);
 
+  // ─── Post-signin magic link : résout l'owner / customer ───
+  // Au magic link signin, Firebase pose `user` mais notre contexte ignore
+  // encore `ownerId` ou `customerId`. On fait ici le routing dérivé :
+  //  - Pro + magicLinkTarget=owner → lookup owner par uid → setOwnerId + mode
+  //  - Client → setCustomerId sur le uid du user (créé au premier cut)
+  const [magicLinkResolving, setMagicLinkResolving] = useState(false);
+  useEffect(() => {
+    if (!ready || !user) return;
+    if (magicLinkStatus !== 'idle') return;
+    if (!magicLinkTarget) return;
+
+    (async () => {
+      setMagicLinkResolving(true);
+      try {
+        if (magicLinkTarget === 'owner' && isPro) {
+          const owner = await findOwnerForAuthUser(user);
+          if (owner) {
+            await setMode('owner');
+            await setOwnerId(owner.id);
+          }
+        } else if (magicLinkTarget === 'client' && isClient) {
+          // Le customerId local = uid Firebase. Le doc customer sera créé
+          // au premier cut si inexistant (flux historique).
+          await storage.setCustomerId(user.uid);
+        }
+      } finally {
+        setMagicLinkResolving(false);
+      }
+    })();
+  }, [
+    ready,
+    user,
+    magicLinkStatus,
+    magicLinkTarget,
+    isPro,
+    isClient,
+    setOwnerId,
+    setMode,
+  ]);
+
+  // ─── États de chargement / cas spéciaux magic link ─────────
+  if (magicLinkStatus === 'needEmail') {
+    return <MagicLinkNeedEmailScreen />;
+  }
+
+  if (magicLinkStatus === 'processing' || magicLinkResolving) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator color={colors.primary} size="large" />
+        <Text style={styles.centerText}>Connexion en cours…</Text>
+      </View>
+    );
+  }
+
+  if (magicLinkStatus === 'error') {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.errorTitle}>Lien invalide</Text>
+        <Text style={styles.centerText}>
+          {magicLinkError || 'Ce lien a expiré ou a déjà été utilisé.'}
+        </Text>
+      </View>
+    );
+  }
+
   if (!ready || !pinChecked) {
     return (
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: colors.bg,
-          justifyContent: 'center',
-          alignItems: 'center',
-        }}
-      >
+      <View style={styles.center}>
         <ActivityIndicator color={colors.primary} size="large" />
       </View>
     );
@@ -120,6 +188,10 @@ export function RootNavigator() {
       {/* ─── Trimya Client ──────────────────────────────────────── */}
       {isClient && (
         <>
+          <Stack.Screen name="EmailSignup" component={EmailSignupScreen} />
+          <Stack.Screen name="EmailLinkSent" component={EmailLinkSentScreen} />
+          {/* PhoneSignup/OtpVerify conservés pour compat (anciens deep-links,
+              bundles natifs). Nouveau flux par défaut : EmailSignup. */}
           <Stack.Screen name="PhoneSignup" component={PhoneSignupScreen} />
           <Stack.Screen name="OtpVerify" component={OtpVerifyScreen} />
           <Stack.Screen name="ClientName" component={ClientNameScreen} />
@@ -209,7 +281,9 @@ function computeInitialRoute(ctx: InitialRouteContext): keyof RootStackParamList
   // ── Trimya Client ────────────────────────────────────────────
   if (ctx.isClient) {
     // L'app client n'a qu'un seul rôle implicite. Pas de RoleSelection.
-    return ctx.user ? 'ClientTabs' : 'PhoneSignup';
+    // Flux par défaut : EmailSignup (magic link). Plus de SMS — bloqués par
+    // MTN Cameroun et plan Blaze non activé. Voir src/services/emailAuth.ts.
+    return ctx.user ? 'ClientTabs' : 'EmailSignup';
   }
 
   // ── Trimya Pro ───────────────────────────────────────────────
@@ -230,3 +304,24 @@ function computeInitialRoute(ctx: InitialRouteContext): keyof RootStackParamList
   // ── Fallback (ne devrait pas arriver) ────────────────────────
   return 'Onboarding';
 }
+
+const styles = {
+  center: {
+    flex: 1,
+    backgroundColor: colors.bg,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+    padding: spacing.lg,
+  },
+  centerText: {
+    ...typography.body,
+    color: colors.textMuted,
+    marginTop: spacing.md,
+    textAlign: 'center' as const,
+  },
+  errorTitle: {
+    ...typography.h2,
+    color: colors.danger,
+    marginBottom: spacing.sm,
+  },
+};
