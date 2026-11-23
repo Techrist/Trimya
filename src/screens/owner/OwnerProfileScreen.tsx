@@ -29,6 +29,7 @@ import { Button } from '@/components/Button';
 import { LanguagePicker } from '@/components/LanguagePicker';
 import { LegalLinks } from '@/components/LegalLinks';
 import { humanizeError } from '@/lib/humanizeError';
+import { confirmDestructive } from '@/lib/confirm';
 import { LoyaltyModeEditor } from '@/components/LoyaltyModeEditor';
 import { useApp } from '@/contexts/AppContext';
 import { useOwner } from '@/hooks/useOwner';
@@ -161,20 +162,21 @@ export function OwnerProfileScreen() {
     );
   };
 
-  const handleSignOut = () => {
-    Alert.alert(t('owner.profile.signOutTitle'), t('owner.profile.signOutText'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('owner.profile.signOut'),
-        style: 'destructive',
-        onPress: async () => {
-          await signOut();
-          await storage.resetAll();
-          await clearMode();
-          navigateToRoot(nav);
-        },
-      },
-    ]);
+  const handleSignOut = async () => {
+    // Confirmation cross-platform : sur web, Alert.alert multi-boutons
+    // bascule sur window.alert (bouton OK unique sans callback).
+    const ok = await confirmDestructive({
+      title: t('owner.profile.signOutTitle'),
+      message: t('owner.profile.signOutText'),
+      confirmLabel: t('owner.profile.signOut'),
+      cancelLabel: t('common.cancel'),
+      destructive: true,
+    });
+    if (!ok) return;
+    await signOut();
+    await storage.resetAll();
+    await clearMode();
+    navigateToRoot(nav);
   };
 
   return (

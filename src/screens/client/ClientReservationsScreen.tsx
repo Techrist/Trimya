@@ -21,6 +21,7 @@ import {
   formatReservationDateTime,
 } from '@/services/reservations';
 import { useT } from '@/i18n';
+import { confirmDestructive } from '@/lib/confirm';
 import { colors, radius, spacing, typography } from '@/theme';
 import { Reservation, ReservationStatus } from '@/types';
 import { ReservationsStackParamList } from '@/navigation/types';
@@ -49,64 +50,53 @@ export function ClientReservationsScreen() {
     return () => unsub?.();
   }, []);
 
-  const handleAcceptProposal = (r: Reservation) => {
-    Alert.alert(
-      t('client.reservation.acceptProposalTitle'),
-      t('client.reservation.acceptProposalConfirm', {
+  const handleAcceptProposal = async (r: Reservation) => {
+    const ok = await confirmDestructive({
+      title: t('client.reservation.acceptProposalTitle'),
+      message: t('client.reservation.acceptProposalConfirm', {
         when: formatReservationDateTime(r.proposedFor || r.scheduledFor).full,
       }),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('common.confirm'),
-          onPress: async () => {
-            await updateReservationStatus({
-              reservation: r,
-              status: 'confirmed',
-              by: 'customer',
-            });
-          },
-        },
-      ],
-    );
+      confirmLabel: t('common.confirm'),
+      cancelLabel: t('common.cancel'),
+    });
+    if (!ok) return;
+    await updateReservationStatus({
+      reservation: r,
+      status: 'confirmed',
+      by: 'customer',
+    });
   };
 
-  const handleCancelProposal = (r: Reservation) => {
-    Alert.alert(
-      t('client.reservation.refuseProposalTitle'),
-      t('client.reservation.refuseProposalText'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('common.refuse'),
-          style: 'destructive',
-          onPress: async () => {
-            await updateReservationStatus({
-              reservation: r,
-              status: 'cancelled',
-              by: 'customer',
-            });
-          },
-        },
-      ],
-    );
+  const handleCancelProposal = async (r: Reservation) => {
+    const ok = await confirmDestructive({
+      title: t('client.reservation.refuseProposalTitle'),
+      message: t('client.reservation.refuseProposalText'),
+      confirmLabel: t('common.refuse'),
+      cancelLabel: t('common.cancel'),
+      destructive: true,
+    });
+    if (!ok) return;
+    await updateReservationStatus({
+      reservation: r,
+      status: 'cancelled',
+      by: 'customer',
+    });
   };
 
-  const handleCancel = (r: Reservation) => {
-    Alert.alert(t('client.reservation.cancelTitle'), t('client.reservation.cancelText'), [
-      { text: t('client.reservation.keep'), style: 'cancel' },
-      {
-        text: t('common.cancel'),
-        style: 'destructive',
-        onPress: async () => {
-          await updateReservationStatus({
-            reservation: r,
-            status: 'cancelled',
-            by: 'customer',
-          });
-        },
-      },
-    ]);
+  const handleCancel = async (r: Reservation) => {
+    const ok = await confirmDestructive({
+      title: t('client.reservation.cancelTitle'),
+      message: t('client.reservation.cancelText'),
+      confirmLabel: t('common.cancel'),
+      cancelLabel: t('client.reservation.keep'),
+      destructive: true,
+    });
+    if (!ok) return;
+    await updateReservationStatus({
+      reservation: r,
+      status: 'cancelled',
+      by: 'customer',
+    });
   };
 
   return (

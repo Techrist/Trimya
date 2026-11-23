@@ -13,6 +13,7 @@ import { useApp } from '@/contexts/AppContext';
 import { useSalonQueueCount } from '@/hooks/useSalonQueueCount';
 import { useSalonPlan } from '@/hooks/useSalonPlan';
 import { useT } from '@/i18n';
+import { alertAndWait } from '@/lib/confirm';
 import { parseQr, validateQrFreshness } from '@/lib/qr';
 import { colors, radius, spacing, typography } from '@/theme';
 import { ScannerStackParamList } from '@/navigation/types';
@@ -42,34 +43,42 @@ export function SalonScannerScreen() {
     }
   }, [permission, requestPermission]);
 
-  const handleBarcode = (result: BarcodeScanningResult) => {
+  const handleBarcode = async (result: BarcodeScanningResult) => {
     if (scanned) return;
     const parsed = parseQr(result.data);
+    // Note : on utilise alertAndWait (cross-platform) au lieu de
+    // Alert.alert(..., [{onPress}]) parce que sur web react-native-web
+    // perd le onPress → le scanner restait bloqué sur scanned=true après
+    // un QR invalide, impossible de re-scanner sans reload.
     if (parsed.kind === 'unknown') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert(t('salon.scanner.invalidQr'), t('salon.scanner.invalidQrHint'), [
-        { text: 'OK', onPress: () => setScanned(false) },
-      ]);
       setScanned(true);
+      await alertAndWait({
+        title: t('salon.scanner.invalidQr'),
+        message: t('salon.scanner.invalidQrHint'),
+      });
+      setScanned(false);
       return;
     }
     const freshness = validateQrFreshness(parsed);
     if (freshness === 'qr_expired') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert(
-        t('salon.scanner.expiredTitle'),
-        t('salon.scanner.expiredText'),
-        [{ text: 'OK', onPress: () => setScanned(false) }],
-      );
       setScanned(true);
+      await alertAndWait({
+        title: t('salon.scanner.expiredTitle'),
+        message: t('salon.scanner.expiredText'),
+      });
+      setScanned(false);
       return;
     }
     if (freshness === 'qr_from_future') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert(t('salon.scanner.invalidQr'), t('salon.scanner.invalidQrHint'), [
-        { text: 'OK', onPress: () => setScanned(false) },
-      ]);
       setScanned(true);
+      await alertAndWait({
+        title: t('salon.scanner.invalidQr'),
+        message: t('salon.scanner.invalidQrHint'),
+      });
+      setScanned(false);
       return;
     }
 
