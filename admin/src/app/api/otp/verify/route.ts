@@ -130,14 +130,22 @@ export async function POST(req: NextRequest) {
     }
 
     // ─── 3) Récupérer ou créer l'utilisateur Firebase ────────
+    // Firebase Admin SDK porte le code sur `.code` (ex "auth/user-not-found"),
+    // pas dans `.message`. On check les deux pour la robustesse — certains
+    // wrappers (Edge runtime, polyfills) perdent le code et ne gardent que
+    // le message anglais.
     let uid: string;
     try {
       const user = await adminAuth.getUserByEmail(email);
       uid = user.uid;
     } catch (e: unknown) {
-      // user-not-found → on crée. Toute autre erreur → bubble up.
+      const code = (e as { code?: string })?.code ?? "";
       const msg = e instanceof Error ? e.message.toLowerCase() : "";
-      if (!msg.includes("user-not-found")) {
+      const isNotFound =
+        code === "auth/user-not-found" ||
+        msg.includes("user-not-found") ||
+        msg.includes("no user record");
+      if (!isNotFound) {
         throw e;
       }
       const newUser = await adminAuth.createUser({

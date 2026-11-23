@@ -68,11 +68,18 @@ export function classifyError(err: unknown): SafeErrorCode {
 
 /** Loggue le message brut côté serveur sans le renvoyer au client. */
 export function logServerError(tag: string, err: unknown): void {
+  if (err instanceof Error) {
+    // Nom + message + code (Firebase Admin le met sur `.code`) + stack.
+    // Le stack est crucial pour debug les erreurs que classifyError mappe
+    // sur `internal_error` opaque : sans ça on n'a aucune piste.
+    const code = (err as { code?: string }).code;
+    console.error(
+      `[${tag}] ${err.name}: ${err.message}${code ? ` (code=${code})` : ""}`,
+    );
+    if (err.stack) console.error(`[${tag}] stack:`, err.stack);
+    return;
+  }
   const raw =
-    err instanceof Error
-      ? `${err.name}: ${err.message}`
-      : typeof err === "string"
-        ? err
-        : JSON.stringify(err);
+    typeof err === "string" ? err : JSON.stringify(err);
   console.error(`[${tag}]`, raw);
 }
