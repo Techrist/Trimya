@@ -70,7 +70,14 @@ export function ClientTabsNavigator() {
   });
 
   return (
-    <View style={{ flex: 1 }}>
+    // ⚠️ Web : `flex: 1` sur un wrapper au-dessus de Tab.Navigator collapse
+    // à hauteur 0 avec react-native-web, parce que le parent (Stack screen
+    // content) utilise déjà un conteneur flex sans height explicite. Résultat :
+    // tout le contenu des tabs se retrouve dans un div h=0 avec overflow:hidden
+    // → écran noir malgré le DOM correctement peuplé.
+    // Fix : utiliser height:'100%' + width:'100%' pour forcer la taille absolue
+    // au lieu de dépendre du flex de l'ancêtre.
+    <View style={{ flex: 1, height: '100%', width: '100%' }}>
     <Tab.Navigator
       screenOptions={{
         headerShown: false,

@@ -257,7 +257,12 @@ export function SalonTabsNavigator() {
 
 const styles = StyleSheet.create({
   root: {
+    // Web : flex:1 seul collapse à h=0 sur react-native-web quand le parent
+    // (Stack screen content) n'a pas de height explicite. On force 100%
+    // pour que Tab.Navigator ait une hauteur mesurable.
     flex: 1,
+    height: '100%',
+    width: '100%',
     backgroundColor: colors.bg,
   },
   bannerSafeArea: {
@@ -265,6 +270,8 @@ const styles = StyleSheet.create({
   },
   tabsWrap: {
     flex: 1,
+    height: '100%',
+    width: '100%',
   },
   tabBar: {
     backgroundColor: colors.surface,
