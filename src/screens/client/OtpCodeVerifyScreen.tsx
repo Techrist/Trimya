@@ -8,7 +8,7 @@ import { Button } from '@/components/Button';
 import { TextField } from '@/components/TextField';
 import { useScreenCapturePrevention } from '@/hooks/useScreenCapturePrevention';
 import { requestOtp, verifyOtp, otpErrorMessage } from '@/services/otpAuth';
-import { findCustomerByPhone } from '@/services/customers';
+import { getCustomer } from '@/services/customers';
 import { findOwnerForAuthUser } from '@/services/owners';
 import { storage } from '@/services/storage';
 import { useApp } from '@/contexts/AppContext';
@@ -18,9 +18,6 @@ import { RootStackParamList } from '@/navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'OtpCodeVerify'>;
 type Rt = RouteProp<RootStackParamList, 'OtpCodeVerify'>;
-
-const DEFAULT_SALON_ID =
-  process.env.EXPO_PUBLIC_DEFAULT_SALON_ID || 'default-salon';
 
 /**
  * Saisie du code OTP 6 chiffres reçu par email.
@@ -93,22 +90,21 @@ export function OtpCodeVerifyScreen() {
       }
 
       // ─── Role client ───────────────────────────────────────
-      // Route vers ClientName si pas de customer rattaché, sinon ClientTabs.
-      // On garde l'ancienne logique findCustomerByPhone en fallback — un user
-      // qui avait migré depuis le flow SMS a peut-être encore un phone.
+      // Depuis le flow OTP par email, l'uid Firebase est stable (le même
+      // email → le même uid à chaque signin). On lookup donc le customer par
+      // uid, PAS par phone (qui est vide avec notre flow email). Si le doc
+      // existe → ClientTabs. Sinon → ClientName pour renseigner le profil.
       await storage.setCustomerId(user.uid);
       try {
-        const existing = await findCustomerByPhone(
-          user.phoneNumber || '',
-          DEFAULT_SALON_ID,
-        );
+        const existing = await getCustomer(user.uid);
         if (existing) {
-          await storage.setCustomerId(existing.id);
           nav.reset({ index: 0, routes: [{ name: 'ClientTabs' }] });
           return;
         }
       } catch {
-        // Lookup phone optionnel — on continue vers ClientName si échec
+        // getCustomer peut throw si le doc n'existe pas (permission denied
+        // dans certaines configs). On traite ça comme "pas de compte" et on
+        // tombe sur ClientName.
       }
       nav.replace('ClientName');
     } catch (e: any) {
