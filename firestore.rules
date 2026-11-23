@@ -296,8 +296,18 @@ service cloud.firestore {
     // ───────── Conversations & Messages ─────────
     //
     // Privé entre LE client de la conv et le kiosque du salon.
+    //
+    // Note : convoId == customerId (cf. convoId() dans services/conversations.ts).
+    // Pour un nouveau client sans message, le doc n'existe pas → `resource`
+    // est null → toutes les conditions basées sur `resource.data.*` échouent
+    // et Firestore retourne `permission-denied` au lieu de `not-found`. On
+    // autorise explicitement la probe d'existence par le client PROPRIÉTAIRE
+    // de la conv (convoId == auth.uid) : ça ne révèle rien qu'il ne puisse
+    // déjà deviner (son propre uid), et ça évite le bruit de warning dans
+    // les subscribe au dashboard.
     match /conversations/{convoId} {
-      allow get: if isAdmin()
+      allow get: if (resource == null && request.auth != null && request.auth.uid == convoId)
+        || isAdmin()
         || isCustomer(resource.data.customerId)
         || isSalonKiosk(resource.data.salonId)
         || isOwner(resource.data.salonId);
