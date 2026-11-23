@@ -541,6 +541,8 @@ export const fr = {
   'client.chat.subtitle': 'Discussion avec ton coiffeur',
   'client.chat.empty.title': 'Aucun message',
   'client.chat.empty.hint': 'Pose une question ou demande une dispo, ton coiffeur te répondra ici.',
+  'client.chat.unavailableTitle': 'Messagerie non activée',
+  'client.chat.unavailableBody': 'Ton salon n\'a pas encore activé la messagerie. Demande-leur de passer en plan Standard ou Pro pour pouvoir discuter ici.',
   'client.dashboard.contactSalon': 'Contacter le salon',
 
   // ── Salon activation ─────────────────────────────

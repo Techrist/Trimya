@@ -484,6 +484,8 @@ export const en: typeof fr = {
   'client.chat.subtitle': 'Conversation with your barber',
   'client.chat.empty.title': 'No messages yet',
   'client.chat.empty.hint': 'Ask a question or check availability — your barber will reply here.',
+  'client.chat.unavailableTitle': 'Messaging not enabled',
+  'client.chat.unavailableBody': 'Your salon hasn\'t enabled messaging yet. Ask them to upgrade to Standard or Pro so you can chat here.',
   'client.dashboard.contactSalon': 'Contact the salon',
 
   // ── Salon activation ─────────────────────────────
