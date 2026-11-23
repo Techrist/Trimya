@@ -3,6 +3,7 @@ import { z } from "zod";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 import { logServerError } from "@/lib/api-errors";
+import { handleOptions, withCors } from "@/lib/cors";
 
 /**
  * Endpoint utilisé par l'app mobile lors de l'activation d'un kiosque.
@@ -21,21 +22,30 @@ const Body = z.object({
   code: z.string().min(4).max(60),
 });
 
+export async function OPTIONS(req: NextRequest) {
+  return handleOptions(req.headers.get("origin"));
+}
+
 export async function POST(req: NextRequest) {
+  const origin = req.headers.get("origin");
+
   // 1) Authentifier le device qui appelle (anonymous ou non)
   const authHeader = req.headers.get("authorization") ?? "";
   const match = authHeader.match(/^Bearer (.+)$/);
   if (!match) {
-    return NextResponse.json(
-      { error: "missing_bearer_token" },
-      { status: 401 },
+    return withCors(
+      NextResponse.json({ error: "missing_bearer_token" }, { status: 401 }),
+      origin,
     );
   }
   let decoded;
   try {
     decoded = await adminAuth.verifyIdToken(match[1]!);
   } catch {
-    return NextResponse.json({ error: "invalid_token" }, { status: 401 });
+    return withCors(
+      NextResponse.json({ error: "invalid_token" }, { status: 401 }),
+      origin,
+    );
   }
   const uid = decoded.uid;
 
@@ -44,13 +54,16 @@ export async function POST(req: NextRequest) {
   try {
     raw = await req.json();
   } catch {
-    return NextResponse.json({ error: "invalid_json" }, { status: 400 });
+    return withCors(
+      NextResponse.json({ error: "invalid_json" }, { status: 400 }),
+      origin,
+    );
   }
   const parsed = Body.safeParse(raw);
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: "invalid_payload" },
-      { status: 400 },
+    return withCors(
+      NextResponse.json({ error: "invalid_payload" }, { status: 400 }),
+      origin,
     );
   }
   const code = parsed.data.code.trim().toUpperCase();
@@ -104,11 +117,14 @@ export async function POST(req: NextRequest) {
       };
     });
 
-    return NextResponse.json({
-      ok: true,
-      salonId: result.salonId,
-      salon: result.salon,
-    });
+    return withCors(
+      NextResponse.json({
+        ok: true,
+        salonId: result.salonId,
+        salon: result.salon,
+      }),
+      origin,
+    );
   } catch (e: unknown) {
     logServerError("activate", e);
     const raw = e instanceof Error ? e.message : "";
@@ -126,6 +142,9 @@ export async function POST(req: NextRequest) {
           : out === "salon_disabled"
             ? 403
             : 500;
-    return NextResponse.json({ error: out }, { status });
+    return withCors(
+      NextResponse.json({ error: out }, { status }),
+      origin,
+    );
   }
 }

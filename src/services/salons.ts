@@ -4,9 +4,17 @@ import {
   onSnapshot,
   updateDoc,
 } from 'firebase/firestore';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { db } from './firebase';
+import { auth, db } from './firebase';
 import { Salon } from '@/types';
+
+/**
+ * URL du backend admin Vercel qui héberge l'endpoint `/api/activate`.
+ * Remplace la Cloud Function Firebase `claimKioskSlot` (qui exigeait le
+ * plan Blaze non activé au Cameroun). Override via EXPO_PUBLIC_ADMIN_API_URL
+ * en dev si besoin.
+ */
+const ADMIN_API_URL =
+  process.env.EXPO_PUBLIC_ADMIN_API_URL || 'https://trimya-admin.vercel.app';
 
 /**
  * Activate a salon kiosk using a one-time activation code.
@@ -124,10 +132,34 @@ export async function registerSalonKioskUid(
   salonId: string,
   code: string,
 ): Promise<void> {
-  const functions = getFunctions(undefined, 'europe-west1');
-  const claim = httpsCallable<
-    { salonId: string; code: string },
-    { ok: boolean; salonId: string }
-  >(functions, 'claimKioskSlot');
-  await claim({ salonId, code });
+  // Migration de Cloud Function (plan Blaze non activé au Cameroun) vers
+  // endpoint Vercel admin /api/activate. L'auth se fait par Firebase ID
+  // token du user anonyme (ou authentifié) — le serveur vérifie avec
+  // adminAuth.verifyIdToken avant de toucher à Firestore.
+  //
+  // Note : le paramètre `salonId` n'est pas envoyé — le serveur le dérive
+  // du code d'activation (source de vérité). On le garde dans la signature
+  // pour compat avec les appelants existants.
+  void salonId;
+
+  const user = auth.currentUser;
+  if (!user) {
+    throw new Error('Session anonyme manquante. Redémarre l\'application.');
+  }
+  const idToken = await user.getIdToken();
+
+  const res = await fetch(`${ADMIN_API_URL}/api/activate`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${idToken}`,
+    },
+    body: JSON.stringify({ code: code.trim().toUpperCase() }),
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({ error: 'internal_error' }));
+    const code = (data as { error?: string }).error ?? 'internal_error';
+    throw new Error(code);
+  }
 }
