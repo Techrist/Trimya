@@ -52,6 +52,17 @@
       -moz-osx-font-smoothing: grayscale;
       overscroll-behavior-y: none;
     }
+    /* CRITIQUE : react-native-web traduit `flex: 1` par CSS `flex: 1`. Sans
+       un parent en `display: flex`, la règle `flex: 1` n'a aucun effet et
+       tous les conteneurs enfants (GestureHandlerRootView, SafeAreaProvider,
+       NavigationContainer, Stack.Navigator, Tab.Navigator) collapsent à
+       height: 0, ce qui donne un écran noir (contenu rendu mais clippé).
+       Rendre #root en flex column force la chaîne flex à propager la hauteur
+       du viewport jusqu'au dashboard. */
+    #root {
+      display: flex;
+      flex-direction: column;
+    }
     /* Splash minimal avant que le bundle JS prenne la main. Évite
        le flash blanc + donne une indication que l'app charge. */
     #splash {
