@@ -8,8 +8,7 @@ import { TextField } from '@/components/TextField';
 import { Logo } from '@/components/Logo';
 import { LegalLinks } from '@/components/LegalLinks';
 import { useScreenCapturePrevention } from '@/hooks/useScreenCapturePrevention';
-import { humanizeError } from '@/lib/humanizeError';
-import { sendMagicLink } from '@/services/emailAuth';
+import { requestOtp, otpErrorMessage } from '@/services/otpAuth';
 import { useT } from '@/i18n';
 import { colors, spacing, typography } from '@/theme';
 import { RootStackParamList } from '@/navigation/types';
@@ -42,10 +41,15 @@ export function EmailSignupScreen() {
     }
     setLoading(true);
     try {
-      await sendMagicLink(trimmed, 'client');
-      nav.navigate('EmailLinkSent', { email: trimmed });
-    } catch (e: any) {
-      Alert.alert(t('common.error'), humanizeError(e, t));
+      const result = await requestOtp(trimmed, 'client');
+      if (!result.ok) {
+        Alert.alert(
+          t('common.error'),
+          otpErrorMessage(result.error ?? 'internal_error'),
+        );
+        return;
+      }
+      nav.navigate('OtpCodeVerify', { email: trimmed });
     } finally {
       setLoading(false);
     }

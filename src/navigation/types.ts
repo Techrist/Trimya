@@ -17,6 +17,10 @@ export type RootStackParamList = {
   PhoneSignup: undefined;
   OtpVerify: { phone: string };
   EmailSignup: undefined;
+  // OtpCodeVerify : nouveau flux par défaut — saisie du code 6 chiffres
+  // reçu par email (via Brevo + Vercel admin). EmailLinkSent reste pour
+  // fallback magic link si on veut un switch.
+  OtpCodeVerify: { email: string; role?: 'client' | 'owner' };
   EmailLinkSent: { email: string };
   ClientName: undefined;
   ClientTabs: undefined;

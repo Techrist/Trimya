@@ -112,6 +112,22 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ───────── Email OTP codes (server-only) ─────────
+    //
+    // Stockage éphémère des codes OTP 6 chiffres envoyés par email via Brevo.
+    // L'app NE touche JAMAIS directement cette collection : tout passe par
+    // les endpoints /api/otp/send et /api/otp/verify du serveur Vercel qui
+    // utilisent le Service Account Firebase Admin (droits full).
+    //
+    // Le hash SHA-256 du code est stocké (pas le code en clair). Les docs
+    // ont une TTL applicative de 5 min, supprimés au premier verify valide
+    // ou après 5 échecs. Fermeture totale côté client = aucune fuite
+    // possible (énumération d'emails, lecture de codes, modification de
+    // tentatives, etc.).
+    match /emailOtps/{email} {
+      allow read, write: if false;
+    }
+
     // ───────── Salons ─────────
     //
     // Champ public minimum (nom, ville, plan, logo, etc.) lisible par les

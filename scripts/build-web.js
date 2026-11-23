@@ -48,6 +48,41 @@ const expoCache = path.join(process.cwd(), '.expo', 'web-build-cache');
 if (fs.existsSync(expoCache)) {
   fs.rmSync(expoCache, { recursive: true, force: true });
 }
+// Cache Metro local (node_modules/.cache/metro) — stocke les layers
+// bundlées entre deux builds, SOUVENT la source du "appTarget:'pro'"
+// qui persiste côté client. On nettoie systématiquement.
+const metroLocal = path.join(process.cwd(), 'node_modules', '.cache', 'metro');
+if (fs.existsSync(metroLocal)) {
+  fs.rmSync(metroLocal, { recursive: true, force: true });
+}
+// Cache Metro GLOBAL : $TEMP/metro-cache + $TEMP/metro-file-map-*
+// C'est LA source du bug reproductible où le bundle sortant garde
+// `appTarget:"pro"` d'un build précédent, même après clean de dist-*.
+// Expo-constants sérialise le manifeste depuis un worker qui lit ce cache.
+const tmp =
+  process.env.TEMP ||
+  process.env.TMP ||
+  process.env.TMPDIR ||
+  (process.platform === 'win32' ? 'C:\\Windows\\Temp' : '/tmp');
+try {
+  const metroGlobal = path.join(tmp, 'metro-cache');
+  if (fs.existsSync(metroGlobal)) {
+    fs.rmSync(metroGlobal, { recursive: true, force: true });
+  }
+  // metro-file-map-<hash> : plusieurs dossiers possibles
+  const entries = fs.readdirSync(tmp);
+  for (const name of entries) {
+    if (name.startsWith('metro-file-map-')) {
+      try {
+        fs.rmSync(path.join(tmp, name), { recursive: true, force: true });
+      } catch {
+        // Un autre process peut tenir un lock — best-effort
+      }
+    }
+  }
+} catch {
+  // best-effort — mieux vaut continuer et rebuilder qu'échouer net
+}
 
 console.log(`\n[build-web] Target = ${target.toUpperCase()}, output = ${outDir}\n`);
 

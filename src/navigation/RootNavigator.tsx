@@ -19,6 +19,7 @@ import { PhoneSignupScreen } from '@/screens/client/PhoneSignupScreen';
 import { OtpVerifyScreen } from '@/screens/client/OtpVerifyScreen';
 import { EmailSignupScreen } from '@/screens/client/EmailSignupScreen';
 import { EmailLinkSentScreen } from '@/screens/client/EmailLinkSentScreen';
+import { OtpCodeVerifyScreen } from '@/screens/client/OtpCodeVerifyScreen';
 import { ClientNameScreen } from '@/screens/client/ClientNameScreen';
 import { ClientQrScreen } from '@/screens/client/ClientQrScreen';
 import { ClientHistoryScreen } from '@/screens/client/ClientHistoryScreen';
@@ -189,6 +190,7 @@ export function RootNavigator() {
       {isClient && (
         <>
           <Stack.Screen name="EmailSignup" component={EmailSignupScreen} />
+          <Stack.Screen name="OtpCodeVerify" component={OtpCodeVerifyScreen} />
           <Stack.Screen name="EmailLinkSent" component={EmailLinkSentScreen} />
           {/* PhoneSignup/OtpVerify conservés pour compat (anciens deep-links,
               bundles natifs). Nouveau flux par défaut : EmailSignup. */}

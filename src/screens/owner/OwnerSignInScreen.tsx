@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Alert, Pressable } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Pressable } from 'react-native';
 import { useNavigation, CommonActions } from '@react-navigation/native';
 import { navigateToRoot } from '@/navigation/navigateToRoot';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Mail, Lock, Building2, Wand2 } from 'lucide-react-native';
+import { Mail, Lock, Building2, KeyRound } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
@@ -11,7 +11,7 @@ import { LegalLinks } from '@/components/LegalLinks';
 import { humanizeError } from '@/lib/humanizeError';
 import { useScreenCapturePrevention } from '@/hooks/useScreenCapturePrevention';
 import { signInAsOwner } from '@/services/owners';
-import { sendMagicLink } from '@/services/emailAuth';
+import { requestOtp, otpErrorMessage } from '@/services/otpAuth';
 import { useApp } from '@/contexts/AppContext';
 import { useT } from '@/i18n';
 import { colors, radius, spacing, typography } from '@/theme';
@@ -19,7 +19,7 @@ import { RootStackParamList } from '@/navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'OwnerSignIn'>;
 
-type Method = 'password' | 'magicLink';
+type Method = 'password' | 'otp';
 
 /**
  * Écran de connexion propriétaire — propose deux méthodes :
@@ -36,12 +36,11 @@ export function OwnerSignInScreen() {
   const { setOwnerId, clearMode } = useApp();
   const { t } = useT();
 
-  const [method, setMethod] = useState<Method>('magicLink');
+  const [method, setMethod] = useState<Method>('otp');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [linkSent, setLinkSent] = useState(false);
   useScreenCapturePrevention();
 
   const handlePasswordSignIn = async () => {
@@ -63,7 +62,7 @@ export function OwnerSignInScreen() {
     }
   };
 
-  const handleMagicLinkSend = async () => {
+  const handleOtpSend = async () => {
     setError(null);
     const trimmed = email.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
@@ -72,12 +71,15 @@ export function OwnerSignInScreen() {
     }
     setLoading(true);
     try {
-      // On passe 'owner' comme cible : le callback au boot saura router vers
-      // OwnerTabs au lieu de ClientTabs.
-      await sendMagicLink(trimmed, 'owner');
-      setLinkSent(true);
-    } catch (e: any) {
-      setError(humanizeError(e, t));
+      const result = await requestOtp(trimmed, 'owner');
+      if (!result.ok) {
+        setError(otpErrorMessage(result.error ?? 'internal_error'));
+        return;
+      }
+      // Navigation vers l'écran de vérification du code — on passe
+      // explicitement role='owner' pour que le post-verify route vers
+      // OwnerTabs (via findOwnerForAuthUser) au lieu de ClientTabs.
+      nav.navigate('OtpCodeVerify', { email: trimmed, role: 'owner' });
     } finally {
       setLoading(false);
     }
@@ -87,40 +89,6 @@ export function OwnerSignInScreen() {
     await clearMode();
     navigateToRoot(nav);
   };
-
-  // ─── UI post-envoi magic link ─────────────────────────────
-  if (linkSent) {
-    return (
-      <Screen padded>
-        <View style={styles.header}>
-          <View style={styles.iconCircle}>
-            <Mail color={colors.primary} size={40} strokeWidth={2} />
-          </View>
-          <Text style={styles.title}>{t('auth.emailSent.title')}</Text>
-          <Text style={styles.subtitle}>
-            {t('auth.emailSent.subtitle', { email })}
-          </Text>
-        </View>
-        <Card style={styles.form}>
-          <Text style={styles.hintText}>{t('auth.emailSent.hint1')}</Text>
-          <Text style={styles.hintText}>{t('auth.emailSent.hint2')}</Text>
-          <Text style={styles.hintText}>{t('auth.emailSent.hint3')}</Text>
-        </Card>
-        <Button
-          label={t('auth.emailSent.resend')}
-          onPress={handleMagicLinkSend}
-          loading={loading}
-          variant="secondary"
-        />
-        <View style={{ height: spacing.sm }} />
-        <Button
-          label={t('auth.emailSent.changeEmail')}
-          onPress={() => setLinkSent(false)}
-          variant="ghost"
-        />
-      </Screen>
-    );
-  }
 
   return (
     <Screen padded keyboardAvoiding>
@@ -137,24 +105,24 @@ export function OwnerSignInScreen() {
         <Pressable
           style={[
             styles.methodBtn,
-            method === 'magicLink' && styles.methodBtnActive,
+            method === 'otp' && styles.methodBtnActive,
           ]}
           onPress={() => {
-            setMethod('magicLink');
+            setMethod('otp');
             setError(null);
           }}
         >
-          <Wand2
-            color={method === 'magicLink' ? colors.primary : colors.textMuted}
+          <KeyRound
+            color={method === 'otp' ? colors.primary : colors.textMuted}
             size={16}
           />
           <Text
             style={[
               styles.methodLabel,
-              method === 'magicLink' && styles.methodLabelActive,
+              method === 'otp' && styles.methodLabelActive,
             ]}
           >
-            {t('owner.signin.methodMagicLink')}
+            Code par email
           </Text>
         </Pressable>
         <Pressable
@@ -223,10 +191,10 @@ export function OwnerSignInScreen() {
           </View>
         ) : null}
 
-        {method === 'magicLink' ? (
+        {method === 'otp' ? (
           <Button
-            label={t('auth.email.send')}
-            onPress={handleMagicLinkSend}
+            label="Recevoir mon code"
+            onPress={handleOtpSend}
             loading={loading}
             disabled={!email}
           />
