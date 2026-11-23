@@ -25,6 +25,7 @@ import { Button } from '@/components/Button';
 import { LanguagePicker } from '@/components/LanguagePicker';
 import { LegalLinks } from '@/components/LegalLinks';
 import { humanizeError } from '@/lib/humanizeError';
+import { confirmDestructive } from '@/lib/confirm';
 import { useT } from '@/i18n';
 import { storage } from '@/services/storage';
 import {
@@ -148,34 +149,28 @@ export function ClientProfileScreen() {
     }
   };
 
-  const handleRequestDeletion = () => {
-    Alert.alert(
-      t('client.profile.deleteConfirmTitle'),
-      t('client.profile.deleteConfirmText'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('client.profile.deleteConfirm'),
-          style: 'destructive',
-          onPress: async () => {
-            if (!customer) return;
-            setDeleting(true);
-            try {
-              await requestAccountDeletion(customer.id);
-              // Sign out + retour à la racine de l'app courante.
-              await signOut();
-              await storage.resetAll();
-              await clearMode();
-              navigateToRoot(nav);
-            } catch (e: any) {
-              Alert.alert(t('common.error'), humanizeError(e, t));
-            } finally {
-              setDeleting(false);
-            }
-          },
-        },
-      ],
-    );
+  const handleRequestDeletion = async () => {
+    const ok = await confirmDestructive({
+      title: t('client.profile.deleteConfirmTitle'),
+      message: t('client.profile.deleteConfirmText'),
+      confirmLabel: t('client.profile.deleteConfirm'),
+      cancelLabel: t('common.cancel'),
+      destructive: true,
+    });
+    if (!ok || !customer) return;
+    setDeleting(true);
+    try {
+      await requestAccountDeletion(customer.id);
+      // Sign out + retour à la racine de l'app courante.
+      await signOut();
+      await storage.resetAll();
+      await clearMode();
+      navigateToRoot(nav);
+    } catch (e: any) {
+      Alert.alert(t('common.error'), humanizeError(e, t));
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleCancelDeletion = async () => {
@@ -248,20 +243,22 @@ export function ClientProfileScreen() {
     }
   };
 
-  const handleSignOut = () => {
-    Alert.alert(t('client.profile.signOutTitle'), t('client.profile.signOutText'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('client.profile.signOut'),
-        style: 'destructive',
-        onPress: async () => {
-          await signOut();
-          await storage.resetAll();
-          await clearMode();
-          navigateToRoot(nav);
-        },
-      },
-    ]);
+  const handleSignOut = async () => {
+    // Confirmation cross-platform : sur web, Alert.alert ignore les
+    // boutons custom et bascule sur window.alert (bouton OK unique),
+    // ce qui rendait la déconnexion silencieusement inopérante.
+    const ok = await confirmDestructive({
+      title: t('client.profile.signOutTitle'),
+      message: t('client.profile.signOutText'),
+      confirmLabel: t('client.profile.signOut'),
+      cancelLabel: t('common.cancel'),
+      destructive: true,
+    });
+    if (!ok) return;
+    await signOut();
+    await storage.resetAll();
+    await clearMode();
+    navigateToRoot(nav);
   };
 
   if (!customer) {
