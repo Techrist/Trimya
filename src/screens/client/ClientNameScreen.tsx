@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Alert, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -38,6 +38,17 @@ export function ClientNameScreen() {
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Pré-remplit le champ email avec celui de la session Firebase. Depuis le
+  // flow OTP (signInWithCustomToken + createUser({ email })), auth.currentUser
+  // porte déjà l'email vérifié. Sans ce pré-remplissage, l'utilisateur voit
+  // un placeholder vide alors qu'on connaît son email — UX bizarre.
+  useEffect(() => {
+    const u = currentUser();
+    if (u?.email && !email) {
+      setEmail(u.email);
+    }
+  }, [email]);
 
   const isValidEmail = (v: string) =>
     v === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
