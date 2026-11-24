@@ -125,4 +125,62 @@ try {
   process.exit(err.status || 1);
 }
 
+// ─── Swap manifest + PWA icons pour la cible Pro ─────────────
+// Par défaut, expo export copie `public/manifest.webmanifest` et
+// `public/icons/*` dans le bundle. Pour Pro on remplace par :
+//   - `public/manifest-pro.webmanifest` → `dist-pro/manifest.webmanifest`
+//   - `public/icons-pro/*`              → `dist-pro/icons/*`
+// Ça donne au bundle Pro ses propres nom/description/catégories dans
+// l'install prompt PWA + ses icônes maison (badge PRO). Le Client n'est
+// pas touché.
+if (target === 'pro') {
+  const proManifest = path.join(process.cwd(), 'public', 'manifest-pro.webmanifest');
+  const proIconsDir = path.join(process.cwd(), 'public', 'icons-pro');
+  const destManifest = path.join(absOut, 'manifest.webmanifest');
+  const destIconsDir = path.join(absOut, 'icons');
+
+  if (fs.existsSync(proManifest)) {
+    fs.copyFileSync(proManifest, destManifest);
+    console.log('[build-web] swapped Pro manifest');
+  } else {
+    console.warn('[build-web] public/manifest-pro.webmanifest missing — keeping client manifest');
+  }
+
+  if (fs.existsSync(proIconsDir)) {
+    for (const name of fs.readdirSync(proIconsDir)) {
+      // Skip README et autres fichiers non-icônes
+      if (!name.endsWith('.png')) continue;
+      fs.copyFileSync(
+        path.join(proIconsDir, name),
+        path.join(destIconsDir, name),
+      );
+    }
+    console.log('[build-web] swapped Pro PWA icons');
+  } else {
+    console.warn('[build-web] public/icons-pro/ missing — keeping client icons');
+  }
+
+  // Rewrite les 2 titres hardcodés dans index.html pour la cible Pro.
+  // Évite de maintenir 2 copies du template.
+  const destIndex = path.join(absOut, 'index.html');
+  if (fs.existsSync(destIndex)) {
+    let html = fs.readFileSync(destIndex, 'utf8');
+    html = html
+      .replace(
+        /<title>Trimya — Ta carte de fidélité coiffeur<\/title>/,
+        '<title>Trimya Pro — Salons & Propriétaires</title>',
+      )
+      .replace(
+        /<meta name="apple-mobile-web-app-title" content="Trimya" \/>/,
+        '<meta name="apple-mobile-web-app-title" content="Trimya Pro" />',
+      )
+      .replace(
+        /<meta name="description" content="[^"]*" \/>/,
+        '<meta name="description" content="Le logiciel des salons de coiffure africains. Scan QR, fidélité, réservations, stats." />',
+      );
+    fs.writeFileSync(destIndex, html, 'utf8');
+    console.log('[build-web] rewrote index.html titles for Pro');
+  }
+}
+
 console.log(`\n[build-web] ✓ ${target.toUpperCase()} bundle ready in ${outDir}/\n`);
