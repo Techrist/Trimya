@@ -477,23 +477,31 @@ export function ClientProfileScreen() {
 
       <Text style={styles.sectionTitle}>{t('client.profile.security')}</Text>
       <Card>
-        <Pressable
-          onPress={() => (nav as any).navigate('ClientChangePhone')}
-          style={styles.settingRow}
-        >
-          <Smartphone color={colors.primary} size={20} strokeWidth={2} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.settingTitle}>
-              {t('client.profile.changePhoneTitle')}
-            </Text>
-            <Text style={styles.settingHint}>
-              {customer.phone}
-            </Text>
-          </View>
-          <ChevronRight color={colors.textDim} size={20} strokeWidth={2} />
-        </Pressable>
-
-        <View style={styles.divider} />
+        {/* Depuis la migration OTP email (nov 2026), `customer.phone` est
+            vide pour tous les nouveaux comptes — le flow SMS est déprécié
+            et bloqué par les opérateurs africains. On n'affiche l'entrée
+            « Changer mon numéro » qu'aux comptes historiques qui ont
+            encore un phone renseigné. */}
+        {customer.phone ? (
+          <>
+            <Pressable
+              onPress={() => (nav as any).navigate('ClientChangePhone')}
+              style={styles.settingRow}
+            >
+              <Smartphone color={colors.primary} size={20} strokeWidth={2} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.settingTitle}>
+                  {t('client.profile.changePhoneTitle')}
+                </Text>
+                <Text style={styles.settingHint}>
+                  {customer.phone}
+                </Text>
+              </View>
+              <ChevronRight color={colors.textDim} size={20} strokeWidth={2} />
+            </Pressable>
+            <View style={styles.divider} />
+          </>
+        ) : null}
 
         <Pressable
           onPress={() => (nav as any).navigate('ClientPinSetup')}

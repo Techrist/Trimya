@@ -912,6 +912,8 @@ export const fr = {
   'owner.dashboard.expiresIn': 'Expire dans {{days}} jours',
   'owner.dashboard.noExpiry': 'Plan actif sans expiration',
   'owner.dashboard.stat.salons': 'Salons',
+  'owner.dashboard.statsErrorIndex': 'Statistiques indisponibles : un index Firestore doit être créé. Contacte le support Trimya.',
+  'owner.dashboard.statsErrorNetwork': 'Statistiques indisponibles pour le moment. Vérifie ta connexion et recharge la page.',
   'owner.dashboard.stat.customers': 'Clients',
   'owner.dashboard.stat.cuts30d': 'Coupes 30j',
   'owner.dashboard.stat.rewards30d': 'Récompenses 30j',

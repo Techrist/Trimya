@@ -4,16 +4,13 @@
  * explicite vers le début du flow).
  *
  * Pourquoi un helper : la route racine **diffère selon la cible de build** :
- *  - Trimya Client (B2C) : la racine est `PhoneSignup` (un seul rôle implicite,
- *    pas d'écran de sélection)
+ *  - Trimya Client (B2C) : la racine est `EmailSignup` (auth OTP email via
+ *    Brevo depuis novembre 2026 — l'ancien `PhoneSignup` est déprécié,
+ *    bloqué par les opérateurs africains et nécessitait le plan Blaze).
  *  - Trimya Pro (B2B)    : la racine est `ProRoleSelection` (salon vs owner)
  *
- * Avant le split, tout le code utilisait `nav.reset({ routes: [{ name: 'RoleSelection' }] })`.
- * Ces appels deviennent dangereux après le split car `RoleSelection` :
- *  - N'existe plus en Pro → crash immédiat
- *  - Propose en Client des choix (salon/owner) qui ne sont plus accessibles → crash
- *
- * Utiliser ce helper systématiquement à la place.
+ * Utiliser ce helper systématiquement pour les sign-out, reset de mode,
+ * PIN oublié, suppression de compte, etc.
  */
 
 import { CommonActions } from '@react-navigation/native';
@@ -41,7 +38,7 @@ import type { RootStackParamList } from './types';
 export function navigateToRoot(nav: any): void {
   const rootRoute: keyof RootStackParamList = isProApp()
     ? 'ProRoleSelection'
-    : 'PhoneSignup';
+    : 'EmailSignup';
   nav.dispatch(
     CommonActions.reset({
       index: 0,

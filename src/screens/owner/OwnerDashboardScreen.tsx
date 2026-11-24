@@ -52,6 +52,11 @@ export function OwnerDashboardScreen() {
   const { t } = useT();
   const [stats, setStats] = useState<ConsolidatedStats | null>(null);
   const [features, setFeatures] = useState<OwnerAggregatedMetrics | null>(null);
+  // null = pas d'erreur. `index_missing` = indexes Firestore à créer.
+  // `network` = problème réseau / permissions. Affiché en bannière.
+  const [statsError, setStatsError] = useState<
+    'index_missing' | 'network' | null
+  >(null);
 
   // Charge les stats agrégées sur tous les salons de l'owner.
   useEffect(() => {
@@ -69,63 +74,79 @@ export function OwnerDashboardScreen() {
       const since = Date.now() - 30 * DAY_MS;
       const salonIds = salons.map((s) => s.id);
 
-      // Cuts récents sur tous les salons (max 30 ids dans 'in')
-      const cuts: Cut[] = [];
-      for (let i = 0; i < salonIds.length; i += 10) {
-        const chunk = salonIds.slice(i, i + 10);
-        const q = query(
-          collection(db, 'cuts'),
-          where('salonId', 'in', chunk),
-          where('createdAt', '>=', since),
-        );
-        const snap = await getDocs(q);
-        for (const d of snap.docs) {
-          cuts.push({ id: d.id, ...(d.data() as Omit<Cut, 'id'>) });
-        }
-      }
-
-      // Customers count sur tous les salons (compte simple par doc)
-      let totalCustomers = 0;
-      for (let i = 0; i < salonIds.length; i += 10) {
-        const chunk = salonIds.slice(i, i + 10);
-        const q = query(
-          collection(db, 'customers'),
-          where('salonId', 'in', chunk),
-        );
-        const snap = await getDocs(q);
-        totalCustomers += snap.size;
-      }
-
-      if (cancelled) return;
-
-      const cutsBySalon = new Map<string, number>();
-      let cuts30d = 0;
-      let rewards30d = 0;
-      let revenue30d = 0;
-      for (const c of cuts) {
-        cuts30d++;
-        if (c.wasReward) rewards30d++;
-        else revenue30d += c.price ?? 0;
-        cutsBySalon.set(c.salonId, (cutsBySalon.get(c.salonId) ?? 0) + 1);
-      }
-
-      const top = Array.from(cutsBySalon.entries())
-        .sort((a, b) => b[1] - a[1])[0];
-      const topSalon = top
-        ? {
-            salonId: top[0],
-            salonName: salons.find((s) => s.id === top[0])?.name ?? top[0],
-            cuts: top[1],
+      // Cuts récents sur tous les salons (max 10 ids dans 'in').
+      //
+      // Note : la query `where('salonId','in',chunk) + where('createdAt','>=',since)`
+      // demande un INDEX COMPOSITE Firestore. Sans cet index la requête
+      // retourne FAILED_PRECONDITION. On catche l'erreur et on expose
+      // un état `statsError` pour que l'UI dise "indispo" au lieu de
+      // rester bloquée sur "—" sans explication.
+      try {
+        const cuts: Cut[] = [];
+        for (let i = 0; i < salonIds.length; i += 10) {
+          const chunk = salonIds.slice(i, i + 10);
+          const q = query(
+            collection(db, 'cuts'),
+            where('salonId', 'in', chunk),
+            where('createdAt', '>=', since),
+          );
+          const snap = await getDocs(q);
+          for (const d of snap.docs) {
+            cuts.push({ id: d.id, ...(d.data() as Omit<Cut, 'id'>) });
           }
-        : undefined;
+        }
 
-      setStats({
-        totalCustomers,
-        cuts30d,
-        rewards30d,
-        revenue30d,
-        topSalon,
-      });
+        // Customers count sur tous les salons (compte simple par doc)
+        let totalCustomers = 0;
+        for (let i = 0; i < salonIds.length; i += 10) {
+          const chunk = salonIds.slice(i, i + 10);
+          const q = query(
+            collection(db, 'customers'),
+            where('salonId', 'in', chunk),
+          );
+          const snap = await getDocs(q);
+          totalCustomers += snap.size;
+        }
+
+        if (cancelled) return;
+
+        const cutsBySalon = new Map<string, number>();
+        let cuts30d = 0;
+        let rewards30d = 0;
+        let revenue30d = 0;
+        for (const c of cuts) {
+          cuts30d++;
+          if (c.wasReward) rewards30d++;
+          else revenue30d += c.price ?? 0;
+          cutsBySalon.set(c.salonId, (cutsBySalon.get(c.salonId) ?? 0) + 1);
+        }
+
+        const top = Array.from(cutsBySalon.entries())
+          .sort((a, b) => b[1] - a[1])[0];
+        const topSalon = top
+          ? {
+              salonId: top[0],
+              salonName: salons.find((s) => s.id === top[0])?.name ?? top[0],
+              cuts: top[1],
+            }
+          : undefined;
+
+        setStats({
+          totalCustomers,
+          cuts30d,
+          rewards30d,
+          revenue30d,
+          topSalon,
+        });
+        setStatsError(null);
+      } catch (err: unknown) {
+        if (cancelled) return;
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn('[owner-dashboard] stats query failed:', msg);
+        // On laisse `stats` sur sa valeur précédente (ou null) mais on
+        // mémorise le flag erreur pour que le rendu affiche une bannière.
+        setStatsError(msg.includes('index') ? 'index_missing' : 'network');
+      }
 
       // Métriques par feature (abonnement / file d'attente / horaires) en parallèle.
       // Pas critique : si ça échoue ou prend du temps, le reste du dashboard tourne déjà.
@@ -193,6 +214,16 @@ export function OwnerDashboardScreen() {
           </View>
         </View>
       </Card>
+
+      {statsError ? (
+        <View style={styles.statsError}>
+          <Text style={styles.statsErrorText}>
+            {statsError === 'index_missing'
+              ? t('owner.dashboard.statsErrorIndex')
+              : t('owner.dashboard.statsErrorNetwork')}
+          </Text>
+        </View>
+      ) : null}
 
       <View style={styles.statsGrid}>
         <Stat
@@ -434,6 +465,19 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textDim,
     marginTop: 2,
+  },
+  statsError: {
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    borderLeftWidth: 3,
+    borderLeftColor: colors.danger,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+    borderRadius: 6,
+  },
+  statsErrorText: {
+    ...typography.caption,
+    color: colors.danger,
   },
   statsGrid: {
     flexDirection: 'row',

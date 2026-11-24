@@ -175,7 +175,14 @@ export async function updateCustomerPersonalInfo(
   if (updates.email !== undefined) patch.email = updates.email ?? null;
   if (updates.birthdate !== undefined) patch.birthdate = updates.birthdate ?? null;
   if (updates.preferences) {
-    patch.preferences = updates.preferences;
+    // Merger champ par champ au lieu d'écraser tout le sous-objet. Sans
+    // ce merge, enregistrer juste {cutNote, beardNote, allergies} depuis
+    // ClientProfileScreen effacerait silencieusement `favoriteBarberId`
+    // posé par ClientBarberDetailScreen (et inversement).
+    for (const [k, v] of Object.entries(updates.preferences)) {
+      if (v === undefined) continue;
+      patch[`preferences.${k}`] = v;
+    }
   }
   if (Object.keys(patch).length === 0) return;
   await updateDoc(doc(db, 'customers', customerId), patch);

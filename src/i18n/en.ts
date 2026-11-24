@@ -852,6 +852,8 @@ export const en: typeof fr = {
   'owner.dashboard.expiresIn': 'Expires in {{days}} days',
   'owner.dashboard.noExpiry': 'Active plan, no expiry',
   'owner.dashboard.stat.salons': 'Salons',
+  'owner.dashboard.statsErrorIndex': 'Stats unavailable: a Firestore index must be created. Contact Trimya support.',
+  'owner.dashboard.statsErrorNetwork': 'Stats temporarily unavailable. Check your connection and reload the page.',
   'owner.dashboard.stat.customers': 'Customers',
   'owner.dashboard.stat.cuts30d': 'Cuts 30d',
   'owner.dashboard.stat.rewards30d': 'Rewards 30d',
