@@ -27,6 +27,7 @@ import { Avatar } from '@/components/Avatar';
 import { subscribeConversation } from '@/services/conversations';
 import { Conversation } from '@/types';
 import { useT, getCurrentLocale, localeToBcp47 } from '@/i18n';
+import { confirmDestructive } from '@/lib/confirm';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { ProgressIndicator } from '@/components/ProgressIndicator';
@@ -144,28 +145,23 @@ export function SalonCustomerDetailScreen() {
     }
   };
 
-  const handleCancelSubscription = () => {
+  const handleCancelSubscription = async () => {
     if (!customer) return;
-    Alert.alert(
-      t('subscription.cancelConfirmTitle'),
-      t('subscription.cancelConfirmText', {
+    const ok = await confirmDestructive({
+      title: t('subscription.cancelConfirmTitle'),
+      message: t('subscription.cancelConfirmText', {
         name: customer.name?.trim() || customer.phone,
       }),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('subscription.cancelConfirmCta'),
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await cancelSubscription(customer.id);
-            } catch (e: any) {
-              Alert.alert(t('common.error'), e.message);
-            }
-          },
-        },
-      ],
-    );
+      confirmLabel: t('subscription.cancelConfirmCta'),
+      cancelLabel: t('common.cancel'),
+      destructive: true,
+    });
+    if (!ok) return;
+    try {
+      await cancelSubscription(customer.id);
+    } catch (e: any) {
+      Alert.alert(t('common.error'), e.message);
+    }
   };
 
   // Seuil dynamique du salon (avec fallback constant).

@@ -28,6 +28,7 @@ import {
   getDayHoursForDate,
 } from '@/services/openingHours';
 import { useT } from '@/i18n';
+import { alertAndWait } from '@/lib/confirm';
 import { colors, spacing, typography, radius } from '@/theme';
 import { Customer, ReservationService, Salon } from '@/types';
 import { ClientTabParamList, ReservationsStackParamList } from '@/navigation/types';
@@ -88,11 +89,11 @@ export function ClientReservationFormScreen() {
         scheduledFor: time,
         note: note.trim() || undefined,
       });
-      Alert.alert(
-        t('reservation.form.sentTitle'),
-        t('reservation.form.sentText'),
-        [{ text: 'OK', onPress: () => nav.goBack() }],
-      );
+      await alertAndWait({
+        title: t('reservation.form.sentTitle'),
+        message: t('reservation.form.sentText'),
+      });
+      nav.goBack();
     } catch (e: any) {
       Alert.alert(t('common.error'), e.message);
     } finally {

@@ -21,6 +21,7 @@ import { getSalon } from '@/services/salons';
 import { createHomeServiceRequest } from '@/services/homeServiceRequests';
 import { useT } from '@/i18n';
 import { humanizeError } from '@/lib/humanizeError';
+import { alertAndWait } from '@/lib/confirm';
 import { colors, radius, spacing, typography } from '@/theme';
 import { Customer, Salon } from '@/types';
 import { RootStackParamList } from '@/navigation/types';
@@ -101,11 +102,11 @@ export function ClientHomeRequestScreen() {
         message: message.trim() || undefined,
         salon,
       });
-      Alert.alert(
-        t('client.homeRequest.successTitle'),
-        t('client.homeRequest.successText', { name: barberName }),
-        [{ text: 'OK', onPress: () => nav.pop(2) }],
-      );
+      await alertAndWait({
+        title: t('client.homeRequest.successTitle'),
+        message: t('client.homeRequest.successText', { name: barberName }),
+      });
+      nav.pop(2);
     } catch (e: any) {
       Alert.alert(t('common.error'), humanizeError(e, t));
     } finally {

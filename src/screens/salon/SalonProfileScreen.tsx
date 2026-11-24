@@ -30,6 +30,7 @@ import { Avatar } from '@/components/Avatar';
 import { LanguagePicker } from '@/components/LanguagePicker';
 import { LegalLinks } from '@/components/LegalLinks';
 import { humanizeError } from '@/lib/humanizeError';
+import { confirmDestructive } from '@/lib/confirm';
 import { SalonPlanCard } from '@/components/SalonPlanCard';
 import { OpeningHoursEditor } from '@/components/OpeningHoursEditor';
 import { SubscriptionPriceEditor } from '@/components/SubscriptionPriceEditor';
@@ -111,24 +112,19 @@ export function SalonProfileScreen() {
     }
   };
 
-  const handleExit = () => {
-    Alert.alert(
-      t('salon.scanner.exitTitle'),
-      t('salon.scanner.exitText'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('salon.scanner.exit'),
-          style: 'destructive',
-          onPress: async () => {
-            await signOut();
-            await storage.resetAll();
-            await clearMode();
-            navigateToRoot(nav);
-          },
-        },
-      ],
-    );
+  const handleExit = async () => {
+    const ok = await confirmDestructive({
+      title: t('salon.scanner.exitTitle'),
+      message: t('salon.scanner.exitText'),
+      confirmLabel: t('salon.scanner.exit'),
+      cancelLabel: t('common.cancel'),
+      destructive: true,
+    });
+    if (!ok) return;
+    await signOut();
+    await storage.resetAll();
+    await clearMode();
+    navigateToRoot(nav);
   };
 
   return (

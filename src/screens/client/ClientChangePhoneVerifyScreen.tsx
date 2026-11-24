@@ -10,6 +10,7 @@ import { confirmPhoneChange } from '@/services/auth';
 import { setCustomerPhone } from '@/services/customers';
 import { useT } from '@/i18n';
 import { humanizeError } from '@/lib/humanizeError';
+import { alertAndWait } from '@/lib/confirm';
 import { colors, spacing, typography } from '@/theme';
 import { RootStackParamList } from '@/navigation/types';
 
@@ -48,11 +49,11 @@ export function ClientChangePhoneVerifyScreen() {
       // Aligne le doc Firestore — le uid est inchangé, on met juste à
       // jour le champ phone.
       await setCustomerPhone(uid, phone);
-      Alert.alert(
-        t('client.changePhone.successTitle'),
-        t('client.changePhone.successText', { phone }),
-        [{ text: 'OK', onPress: () => nav.pop(2) }], // retour profil
-      );
+      await alertAndWait({
+        title: t('client.changePhone.successTitle'),
+        message: t('client.changePhone.successText', { phone }),
+      });
+      nav.pop(2); // retour profil
     } catch (e: any) {
       Alert.alert(t('common.error'), humanizeError(e, t));
     } finally {

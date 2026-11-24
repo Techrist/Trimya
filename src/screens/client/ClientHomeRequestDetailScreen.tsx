@@ -25,6 +25,7 @@ import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { useT } from '@/i18n';
 import { humanizeError } from '@/lib/humanizeError';
+import { confirmDestructive } from '@/lib/confirm';
 import {
   getHomeServiceRequest,
   updateHomeServiceRequestStatus,
@@ -106,58 +107,48 @@ export function ClientHomeRequestDetailScreen() {
     }
   };
 
-  const handleRefuseProposal = () => {
-    Alert.alert(
-      t('client.homeRequestDetail.refuseProposalTitle'),
-      t('client.homeRequestDetail.refuseProposalText'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('client.homeRequestDetail.refuseProposalCta'),
-          style: 'destructive',
-          onPress: async () => {
-            setActing(true);
-            try {
-              await updateHomeServiceRequestStatus({
-                request: req,
-                status: 'cancelled',
-                by: 'customer',
-              });
-              await load();
-            } finally {
-              setActing(false);
-            }
-          },
-        },
-      ],
-    );
+  const handleRefuseProposal = async () => {
+    const ok = await confirmDestructive({
+      title: t('client.homeRequestDetail.refuseProposalTitle'),
+      message: t('client.homeRequestDetail.refuseProposalText'),
+      confirmLabel: t('client.homeRequestDetail.refuseProposalCta'),
+      cancelLabel: t('common.cancel'),
+      destructive: true,
+    });
+    if (!ok) return;
+    setActing(true);
+    try {
+      await updateHomeServiceRequestStatus({
+        request: req,
+        status: 'cancelled',
+        by: 'customer',
+      });
+      await load();
+    } finally {
+      setActing(false);
+    }
   };
 
-  const handleCancel = () => {
-    Alert.alert(
-      t('client.homeRequestDetail.cancelTitle'),
-      t('client.homeRequestDetail.cancelText'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('client.homeRequestDetail.cancelCta'),
-          style: 'destructive',
-          onPress: async () => {
-            setActing(true);
-            try {
-              await updateHomeServiceRequestStatus({
-                request: req,
-                status: 'cancelled',
-                by: 'customer',
-              });
-              await load();
-            } finally {
-              setActing(false);
-            }
-          },
-        },
-      ],
-    );
+  const handleCancel = async () => {
+    const ok = await confirmDestructive({
+      title: t('client.homeRequestDetail.cancelTitle'),
+      message: t('client.homeRequestDetail.cancelText'),
+      confirmLabel: t('client.homeRequestDetail.cancelCta'),
+      cancelLabel: t('common.cancel'),
+      destructive: true,
+    });
+    if (!ok) return;
+    setActing(true);
+    try {
+      await updateHomeServiceRequestStatus({
+        request: req,
+        status: 'cancelled',
+        by: 'customer',
+      });
+      await load();
+    } finally {
+      setActing(false);
+    }
   };
 
   const dt = formatHomeRequestDateTime(req.requestedFor);

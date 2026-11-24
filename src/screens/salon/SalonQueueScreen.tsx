@@ -29,6 +29,7 @@ import {
 } from '@/services/queue';
 import { useT } from '@/i18n';
 import { humanizeError } from '@/lib/humanizeError';
+import { confirmDestructive } from '@/lib/confirm';
 import { colors, radius, spacing, typography } from '@/theme';
 import { QueueEntry } from '@/types';
 import { ScannerStackParamList } from '@/navigation/types';
@@ -78,27 +79,22 @@ export function SalonQueueScreen() {
     }
   };
 
-  const handleCancel = (entry: QueueEntry) => {
-    Alert.alert(
-      t('queue.salon.cancelConfirmTitle'),
-      t('queue.salon.cancelConfirmText', {
+  const handleCancel = async (entry: QueueEntry) => {
+    const ok = await confirmDestructive({
+      title: t('queue.salon.cancelConfirmTitle'),
+      message: t('queue.salon.cancelConfirmText', {
         name: entry.customerName?.trim() || entry.customerPhone,
       }),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('queue.salon.cancelConfirmCta'),
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await cancelQueueEntry(entry.id, 'salon');
-            } catch (e: any) {
-              Alert.alert(t('common.error'), humanizeError(e, t));
-            }
-          },
-        },
-      ],
-    );
+      confirmLabel: t('queue.salon.cancelConfirmCta'),
+      cancelLabel: t('common.cancel'),
+      destructive: true,
+    });
+    if (!ok) return;
+    try {
+      await cancelQueueEntry(entry.id, 'salon');
+    } catch (e: any) {
+      Alert.alert(t('common.error'), humanizeError(e, t));
+    }
   };
 
   return (

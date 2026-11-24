@@ -20,6 +20,7 @@ import { useSalonPlan } from '@/hooks/useSalonPlan';
 import { subscribeBarbers } from '@/services/barbers';
 import { PLANS, getPlanLabel } from '@/lib/plans';
 import { useT } from '@/i18n';
+import { confirmDestructive } from '@/lib/confirm';
 import { colors, radius, spacing, typography } from '@/theme';
 import { Barber } from '@/types';
 import { ProfileStackParamList } from '@/navigation/types';
@@ -53,23 +54,19 @@ export function SalonBarbersScreen() {
     limits.maxBarbers !== null && activeCount >= limits.maxBarbers;
   const upgradeTarget = plan === 'free' ? 'standard' : 'pro';
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (atLimit) {
-      Alert.alert(
-        t('plan.limit.barbersTitle'),
-        t('plan.limit.barbersBody', {
+      const ok = await confirmDestructive({
+        title: t('plan.limit.barbersTitle'),
+        message: t('plan.limit.barbersBody', {
           plan: getPlanLabel(plan, t),
           max: String(limits.maxBarbers),
           plural: (limits.maxBarbers ?? 0) > 1 ? 's' : '',
         }),
-        [
-          { text: t('common.cancel'), style: 'cancel' },
-          {
-            text: t('plan.locked.cta', { plan: getPlanLabel(upgradeTarget, t) }),
-            onPress: () => setShowUpgrade(true),
-          },
-        ],
-      );
+        confirmLabel: t('plan.locked.cta', { plan: getPlanLabel(upgradeTarget, t) }),
+        cancelLabel: t('common.cancel'),
+      });
+      if (ok) setShowUpgrade(true);
       return;
     }
     nav.navigate('BarberForm', {});

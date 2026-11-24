@@ -27,6 +27,7 @@ import { useOwner } from '@/hooks/useOwner';
 import { subscribeBarbers, transferBarber } from '@/services/barbers';
 import { useT } from '@/i18n';
 import { humanizeError } from '@/lib/humanizeError';
+import { alertAndWait, confirmDestructive } from '@/lib/confirm';
 import { colors, radius, spacing, typography } from '@/theme';
 import { Barber, Salon } from '@/types';
 import { isOwnerEnterpriseActive } from '@/lib/plans';
@@ -96,14 +97,14 @@ export function OwnerBarberTransferScreen() {
         toSalonId,
       });
       const toSalon = salons.find((s) => s.id === toSalonId);
-      Alert.alert(
-        t('owner.barberTransfer.successTitle'),
-        t('owner.barberTransfer.successText', {
+      setPickerFor(null);
+      await alertAndWait({
+        title: t('owner.barberTransfer.successTitle'),
+        message: t('owner.barberTransfer.successText', {
           barber: pickerFor.barber.name,
           salon: toSalon?.name ?? '',
         }),
-      );
-      setPickerFor(null);
+      });
     } catch (e: any) {
       Alert.alert(t('common.error'), humanizeError(e, t));
     } finally {
@@ -276,23 +277,19 @@ export function OwnerBarberTransferScreen() {
                 .map((s) => (
                   <Pressable
                     key={s.id}
-                    onPress={() =>
-                      Alert.alert(
-                        t('owner.barberTransfer.confirmTitle'),
-                        t('owner.barberTransfer.confirmText', {
+                    onPress={async () => {
+                      const ok = await confirmDestructive({
+                        title: t('owner.barberTransfer.confirmTitle'),
+                        message: t('owner.barberTransfer.confirmText', {
                           barber: pickerFor?.barber.name ?? '',
                           from: pickerFor?.fromSalon.name ?? '',
                           to: s.name,
                         }),
-                        [
-                          { text: t('common.cancel'), style: 'cancel' },
-                          {
-                            text: t('owner.barberTransfer.confirm'),
-                            onPress: () => handleTransfer(s.id),
-                          },
-                        ],
-                      )
-                    }
+                        confirmLabel: t('owner.barberTransfer.confirm'),
+                        cancelLabel: t('common.cancel'),
+                      });
+                      if (ok) handleTransfer(s.id);
+                    }}
                     disabled={transferring}
                     style={styles.salonOption}
                   >

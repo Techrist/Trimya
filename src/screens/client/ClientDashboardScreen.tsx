@@ -44,6 +44,7 @@ import {
 } from '@/services/reviews';
 import { useT } from '@/i18n';
 import { humanizeError } from '@/lib/humanizeError';
+import { confirmDestructive } from '@/lib/confirm';
 import { daysRemaining, formatExpiry } from '@/services/subscriptions';
 import { getLimits } from '@/lib/plans';
 import { colors, radius, spacing, typography, REWARD_THRESHOLD } from '@/theme';
@@ -244,26 +245,21 @@ export function ClientDashboardScreen() {
     }
   };
 
-  const handleCancelQueue = () => {
+  const handleCancelQueue = async () => {
     if (!queueEntry) return;
-    Alert.alert(
-      t('queue.client.cancelConfirmTitle'),
-      t('queue.client.cancelConfirmText'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('queue.client.cancelConfirmCta'),
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await cancelQueueEntry(queueEntry.id, 'customer');
-            } catch (e: any) {
-              Alert.alert(t('common.error'), humanizeError(e, t));
-            }
-          },
-        },
-      ],
-    );
+    const ok = await confirmDestructive({
+      title: t('queue.client.cancelConfirmTitle'),
+      message: t('queue.client.cancelConfirmText'),
+      confirmLabel: t('queue.client.cancelConfirmCta'),
+      cancelLabel: t('common.cancel'),
+      destructive: true,
+    });
+    if (!ok) return;
+    try {
+      await cancelQueueEntry(queueEntry.id, 'customer');
+    } catch (e: any) {
+      Alert.alert(t('common.error'), humanizeError(e, t));
+    }
   };
 
   if (loading) {

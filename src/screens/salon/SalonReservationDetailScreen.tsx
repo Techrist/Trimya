@@ -21,6 +21,7 @@ import {
 import { getCustomer } from '@/services/customers';
 import { useT } from '@/i18n';
 import { humanizeError } from '@/lib/humanizeError';
+import { confirmDestructive } from '@/lib/confirm';
 import { colors, radius, spacing, typography } from '@/theme';
 import { Customer, Reservation } from '@/types';
 import { ReservationsStackParamList } from '@/navigation/types';
@@ -116,27 +117,21 @@ export function SalonReservationDetailScreen() {
   };
 
   const handleMarkNoShow = async () => {
-    Alert.alert(
-      t('salon.reservation.noShowTitle'),
-      t('salon.reservation.noShowText'),
-      [
-        { text: t('common.no'), style: 'cancel' },
-        {
-          text: t('salon.reservation.noShowConfirm'),
-          style: 'destructive',
-          onPress: async () => {
-            if (!reservation || !customer) return;
-            await updateReservationStatus({
-              reservation,
-              status: 'cancelled',
-              by: 'salon',
-              customer,
-            });
-            await reload();
-          },
-        },
-      ],
-    );
+    const ok = await confirmDestructive({
+      title: t('salon.reservation.noShowTitle'),
+      message: t('salon.reservation.noShowText'),
+      confirmLabel: t('salon.reservation.noShowConfirm'),
+      cancelLabel: t('common.no'),
+      destructive: true,
+    });
+    if (!ok || !reservation || !customer) return;
+    await updateReservationStatus({
+      reservation,
+      status: 'cancelled',
+      by: 'salon',
+      customer,
+    });
+    await reload();
   };
 
   return (

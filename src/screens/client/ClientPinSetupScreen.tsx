@@ -10,6 +10,7 @@ import { TextField } from '@/components/TextField';
 import { hasPin, setPin, clearPin } from '@/services/clientPin';
 import { useT } from '@/i18n';
 import { humanizeError } from '@/lib/humanizeError';
+import { alertAndWait, confirmDestructive } from '@/lib/confirm';
 import { colors, radius, spacing, typography } from '@/theme';
 import { RootStackParamList } from '@/navigation/types';
 
@@ -47,11 +48,11 @@ export function ClientPinSetupScreen() {
     setSaving(true);
     try {
       await setPin(pin1);
-      Alert.alert(
-        t('client.pin.savedTitle'),
-        t('client.pin.savedText'),
-        [{ text: 'OK', onPress: () => nav.goBack() }],
-      );
+      await alertAndWait({
+        title: t('client.pin.savedTitle'),
+        message: t('client.pin.savedText'),
+      });
+      nav.goBack();
     } catch (e: any) {
       Alert.alert(t('common.error'), humanizeError(e, t));
     } finally {
@@ -59,27 +60,22 @@ export function ClientPinSetupScreen() {
     }
   };
 
-  const handleClear = () => {
-    Alert.alert(
-      t('client.pin.removeTitle'),
-      t('client.pin.removeText'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('client.pin.removeCta'),
-          style: 'destructive',
-          onPress: async () => {
-            await clearPin();
-            setPinExists(false);
-            Alert.alert(
-              t('client.pin.removedTitle'),
-              t('client.pin.removedText'),
-              [{ text: 'OK', onPress: () => nav.goBack() }],
-            );
-          },
-        },
-      ],
-    );
+  const handleClear = async () => {
+    const ok = await confirmDestructive({
+      title: t('client.pin.removeTitle'),
+      message: t('client.pin.removeText'),
+      confirmLabel: t('client.pin.removeCta'),
+      cancelLabel: t('common.cancel'),
+      destructive: true,
+    });
+    if (!ok) return;
+    await clearPin();
+    setPinExists(false);
+    await alertAndWait({
+      title: t('client.pin.removedTitle'),
+      message: t('client.pin.removedText'),
+    });
+    nav.goBack();
   };
 
   return (
