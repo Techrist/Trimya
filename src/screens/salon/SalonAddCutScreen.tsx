@@ -34,7 +34,7 @@ import { useT } from '@/i18n';
 import { humanizeError } from '@/lib/humanizeError';
 import { colors, radius, spacing, typography, REWARD_THRESHOLD } from '@/theme';
 import { Customer, ScanResult, Barber, Salon, getSalonRewardThreshold } from '@/types';
-import { subscribeSalon } from '@/services/salons';
+import { getSalon, subscribeSalon } from '@/services/salons';
 import { ScannerStackParamList } from '@/navigation/types';
 
 type Nav = NativeStackNavigationProp<ScannerStackParamList, 'AddCut'>;
@@ -68,14 +68,34 @@ export function SalonAddCutScreen() {
     try {
       const c = await getCustomer(customerId);
       if (!c) {
-        setError('Client introuvable.');
+        setError(t('salon.addCut.customerNotFound'));
         return;
       }
       setCustomer(c);
-      if (salonId && c.salonId !== salonId) {
-        setNeedsMigration(true);
-      } else {
+      // Cross-salon : on force la migration SEULEMENT si le salon scanneur
+      // n'est pas dans la même chaîne shared que le salon d'origine du
+      // client. Sinon la Cloud Function / endpoint Vercel accepte la coupe
+      // directement sans migration (loyauté partagée).
+      if (!salonId || c.salonId === salonId) {
         setNeedsMigration(false);
+        return;
+      }
+      // Check cross-salon shared : même owner + flag loyaltySharedWithOwner
+      // sur le salon scanneur. Lecture défensive — si on n'arrive pas à
+      // lire les salons (rules), on fallback sur needsMigration=true.
+      try {
+        const [scanning, home] = await Promise.all([
+          getSalon(salonId),
+          getSalon(c.salonId),
+        ]);
+        const sameChain =
+          !!scanning?.ownerId &&
+          !!home?.ownerId &&
+          scanning.ownerId === home.ownerId;
+        const sharedOk = sameChain && !!scanning?.loyaltySharedWithOwner;
+        setNeedsMigration(!sharedOk);
+      } catch {
+        setNeedsMigration(true);
       }
     } catch (e: any) {
       setError(humanizeError(e, t));

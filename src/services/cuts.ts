@@ -8,19 +8,16 @@ import {
   getDocs,
   getDoc,
 } from 'firebase/firestore';
-import { getFunctions, httpsCallable, type Functions } from 'firebase/functions';
-import { db } from './firebase';
-import { getApp } from 'firebase/app';
+import { auth, db } from './firebase';
 import { Cut, ScanResult, isSubscriptionActive } from '@/types';
 import { REWARD_THRESHOLD } from '@/theme';
 
-let functionsInstance: Functions | null = null;
-function getFns(): Functions {
-  if (!functionsInstance) {
-    functionsInstance = getFunctions(getApp(), 'europe-west1');
-  }
-  return functionsInstance;
-}
+/**
+ * URL du backend admin Vercel qui héberge `/api/cuts/add`. Remplace la
+ * Cloud Function `addCutSecure` (plan Blaze non activé au Cameroun).
+ */
+const ADMIN_API_URL =
+  process.env.EXPO_PUBLIC_ADMIN_API_URL || 'https://trimya-admin.vercel.app';
 
 /**
  * Charge un salon de façon défensive (renvoie null si introuvable ou erreur de
@@ -80,54 +77,74 @@ export async function addCut(params: {
   /** Si fourni : `exp` du payload QR v3 → vérifié serveur. */
   qrExp?: number;
 }): Promise<ScanResult> {
-  const { customerId, salonId, barberId, barberName, price, qrExp } = params;
+  const { customerId, salonId, barberId, barberName, price } = params;
+  void params.qrExp; // reservé pour une future vérif serveur anti-replay
 
-  // Tentative Cloud Function en premier.
+  // ─── Appel endpoint Vercel admin `/api/cuts/add` ───
+  // Remplace l'ancienne Cloud Function `addCutSecure` qui n'a jamais été
+  // déployée (plan Blaze non activé). L'endpoint réplique la même
+  // transaction : vérif kiosque + anti cross-salon abusif + rate-limit
+  // par salon + create cut + update customer counters.
+  const user = auth.currentUser;
+  if (!user) {
+    throw new Error('Session kiosque manquante — redémarre l\'application.');
+  }
   try {
-    const call = httpsCallable<
-      Record<string, unknown>,
-      { ok: true; cutId: string; newCount: number; wasReward: boolean; rewardUnlocked: boolean }
-    >(getFns(), 'addCutSecure');
-    const res = await call({
-      customerId,
-      salonId,
-      barberId,
-      barberName,
-      price,
-      qrExp,
-    });
-    const r = res.data;
-    return {
-      customer: {
-        id: customerId,
-        phone: '',
-        salonId,
-        currentCount: r.newCount,
-        totalCuts: 0,
-        totalRewards: 0,
-        createdAt: 0,
-        lastVisitAt: Date.now(),
+    const idToken = await user.getIdToken();
+    const res = await fetch(`${ADMIN_API_URL}/api/cuts/add`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${idToken}`,
       },
-      newCount: r.newCount,
-      wasReward: r.wasReward,
-      rewardUnlocked: r.rewardUnlocked,
-    };
+      body: JSON.stringify({
+        customerId,
+        salonId,
+        ...(barberId ? { barberId } : {}),
+        ...(barberName ? { barberName } : {}),
+        ...(price !== undefined ? { price } : {}),
+      }),
+    });
+    if (res.ok) {
+      const r = (await res.json()) as {
+        ok: true;
+        cutId: string;
+        newCount: number;
+        wasReward: boolean;
+        rewardUnlocked: boolean;
+      };
+      return {
+        customer: {
+          id: customerId,
+          phone: '',
+          salonId,
+          currentCount: r.newCount,
+          totalCuts: 0,
+          totalRewards: 0,
+          createdAt: 0,
+          lastVisitAt: Date.now(),
+        },
+        newCount: r.newCount,
+        wasReward: r.wasReward,
+        rewardUnlocked: r.rewardUnlocked,
+      };
+    }
+    // Erreurs applicatives (forbidden, wrong_salon, customer_not_found…)
+    // → on les remonte telles quelles pour que humanizeError puisse les
+    // mapper vers un message utilisateur.
+    const data = await res.json().catch(() => ({ error: 'internal_error' }));
+    const serverCode = (data as { error?: string }).error ?? 'internal_error';
+    throw new Error(serverCode);
   } catch (e: unknown) {
-    // SÉCURITÉ — En PRODUCTION on refuse strictement de retomber sur la
-    // transaction client : elle n'a ni rate-limit, ni anti-replay renforcé,
-    // ni quota par salon, et un attaquant pourrait DoS la Cloud Function
-    // exprès pour forcer ce fallback moins sécurisé. On laisse le repli
-    // uniquement en dev (__DEV__ = true dans Expo Go / dev client) pour
-    // qu'on puisse continuer à tester localement sans déploiement des
-    // fonctions.
-    const code = (e as { code?: string }).code ?? '';
-    const fallbackOnDeploy =
-      code === 'functions/not-found' ||
-      code === 'functions/unavailable' ||
-      code === 'functions/internal' ||
-      code === 'not-found' ||
-      code === 'unavailable';
-    if (!__DEV__ || !fallbackOnDeploy) throw e;
+    // En dev local uniquement : si le endpoint Vercel est injoignable
+    // (admin pas lancé en local sur :3000), on retombe sur la transaction
+    // client pour pouvoir tester sans serveur admin.
+    const msg = e instanceof Error ? e.message : '';
+    const networkError =
+      msg.includes('Failed to fetch') ||
+      msg.includes('NetworkError') ||
+      msg === 'Network request failed';
+    if (!__DEV__ || !networkError) throw e;
   }
 
   const customerRef = doc(db, 'customers', customerId);

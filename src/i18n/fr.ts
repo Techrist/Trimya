@@ -706,6 +706,9 @@ export const fr = {
   'salon.customer.cut.paid': 'Coupe payante',
   'salon.customer.cut.reward': 'Coupe offerte',
   'salon.customer.addCutOk': '✓ Coupe ajoutée',
+  'salon.addCut.customerNotFound': 'Client introuvable.',
+  'salon.profile.showCode': 'Afficher le code',
+  'salon.profile.hideCode': 'Masquer le code',
   'salon.customer.rewardOk': '🎁 Coupe offerte validée',
   'salon.customer.rewardUnlockedNote': '\n\nLa prochaine coupe sera offerte 🎉',
 

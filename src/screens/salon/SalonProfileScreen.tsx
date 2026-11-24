@@ -17,6 +17,8 @@ import {
   BarChart3,
   Building2,
   Hash,
+  Eye,
+  EyeOff,
   ChevronRight,
   Scissors,
   TrendingUp,
@@ -56,6 +58,10 @@ export function SalonProfileScreen() {
   const [salon, setSalon] = useState<Salon | null>(null);
   const [stats, setStats] = useState<SalonStats | null>(null);
   const [pushEnabled, setPushEnabled] = useState(true);
+  // Code d'activation masqué par défaut — toute personne de passage près de
+  // la tablette kiosque pouvait sinon le lire et s'en servir pour piloter
+  // un salon ailleurs (combiné à signInAsSalonKiosk anonyme).
+  const [codeVisible, setCodeVisible] = useState(false);
 
   useEffect(() => {
     if (!salonId) return;
@@ -170,8 +176,32 @@ export function SalonProfileScreen() {
           <Hash color={colors.textMuted} size={18} strokeWidth={2} />
           <View style={{ flex: 1 }}>
             <Text style={styles.fieldLabel}>{t('salon.profile.activationCode')}</Text>
-            <Text style={styles.fieldValue}>{salon?.activationCode || '—'}</Text>
+            <Text style={styles.fieldValue}>
+              {salon?.activationCode
+                ? codeVisible
+                  ? salon.activationCode
+                  : '•'.repeat(Math.max(4, salon.activationCode.length))
+                : '—'}
+            </Text>
           </View>
+          {salon?.activationCode ? (
+            <Pressable
+              onPress={() => setCodeVisible((v) => !v)}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel={
+                codeVisible
+                  ? t('salon.profile.hideCode')
+                  : t('salon.profile.showCode')
+              }
+            >
+              {codeVisible ? (
+                <EyeOff color={colors.textMuted} size={18} strokeWidth={2} />
+              ) : (
+                <Eye color={colors.textMuted} size={18} strokeWidth={2} />
+              )}
+            </Pressable>
+          ) : null}
         </View>
       </Card>
 

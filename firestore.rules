@@ -101,15 +101,17 @@ service cloud.firestore {
       }
     }
 
-    // ───────── Activation codes (lookup-only) ─────────
+    // ───────── Activation codes (serveur uniquement) ─────────
     //
-    // Permet la résolution code → salonId par get() direct uniquement.
-    // Aucune énumération possible : pas de list.
-    // Écriture serveur uniquement (Admin SDK depuis Trimya Admin).
+    // L'ancien `allow get: if request.auth != null` permettait à un user
+    // Firebase anonyme de faire du brute-force sur tous les codes (24M
+    // possibilités à 5 chars). Désormais la résolution code→salonId se
+    // fait EXCLUSIVEMENT via l'endpoint Vercel /api/activate (Admin SDK,
+    // avec rate-limit et transaction atomique one-shot).
+    // Pas de `list` : énumération impossible. Pas de `get` : pas de
+    // probe possible. Pas d'écriture : seul l'admin crée les codes.
     match /activationCodes/{code} {
-      allow get: if request.auth != null;
-      allow list: if isAdmin();
-      allow write: if false;
+      allow read, write: if isAdmin();
     }
 
     // ───────── Email OTP codes (server-only) ─────────
@@ -163,18 +165,41 @@ service cloud.firestore {
       // Le kiosque existant garde le droit de mettre à jour les autres
       // champs (logo, horaires, push token...), mais s'il essaie de
       // modifier kioskUserIds en self-service la rule rejette.
+      // SÉCURITÉ CRITIQUE — Les champs qui contrôlent la facturation et
+      // l'intégrité du modèle (plan, expiration, trial, désactivation, code
+      // d'activation, nom officiel) sont RÉSERVÉS ADMIN. Sans cette liste
+      // noire, un kiosque authentifié pouvait écrire
+      // `updateDoc(salons/id, { plan: 'pro', planExpiresAt: 9999999999999 })`
+      // et contourner toutes les gates `planAllows()` (messagerie,
+      // réservations, abonnements, file d'attente).
       allow update: if isAdmin()
         || (
           isOwner(salonId)
-          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['inheritedPlan', 'ownerId'])
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+               'inheritedPlan', 'ownerId',
+               'plan', 'planExpiresAt', 'planActivatedAt', 'trialEndsAt',
+               'disabledAt', 'activationCode',
+             ])
         )
         || (
           isSalonKiosk(salonId)
           && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
                'inheritedPlan', 'ownerId',
                'loyaltySharedWithOwner', 'effectiveRewardThreshold',
-               'kioskUserIds', 'activatedAt'
+               'kioskUserIds', 'activatedAt',
+               'plan', 'planExpiresAt', 'planActivatedAt', 'trialEndsAt',
+               'disabledAt', 'activationCode',
              ])
+          // S8 — rewardThreshold doit rester dans [1, 20]. Sans ça un
+          // kiosque pouvait poser 0 et casser toute la progression fidélité.
+          && (
+            !request.resource.data.diff(resource.data).affectedKeys().hasAny(['rewardThreshold'])
+            || (
+              request.resource.data.rewardThreshold is int
+              && request.resource.data.rewardThreshold >= 1
+              && request.resource.data.rewardThreshold <= 20
+            )
+          )
           && (
             !request.resource.data.diff(resource.data).affectedKeys().hasAny(['openingHours', 'closures'])
             || planAllows(salonId, ['standard', 'pro'])

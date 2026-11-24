@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth-server";
-import { adminDb } from "@/lib/firebase-admin";
+import { adminAuth, adminDb } from "@/lib/firebase-admin";
 import { classifyError, logServerError } from "@/lib/api-errors";
 import {
   DAY_MS,
@@ -255,11 +255,32 @@ export async function PATCH(
         return NextResponse.json({ ok: true });
       }
       case "disable": {
+        // 1) Flag Firestore (lu par signInAsOwner + findOwnerForAuthUser)
         await ownerRef.update({ disabledAt: now });
+        // 2) Désactiver le compte Firebase Auth pour bloquer tout nouveau
+        //    sign-in (même via OTP email).
+        // 3) Révoquer les refresh tokens → la session en cours expire au
+        //    prochain refresh (~1h max). Sans ces 2 étapes, le flag Firestore
+        //    seul était purement cosmétique et l'owner restait connecté
+        //    indéfiniment.
+        try {
+          await adminAuth.updateUser(id, { disabled: true });
+          await adminAuth.revokeRefreshTokens(id);
+        } catch (e) {
+          // Peut arriver si l'owner n'a pas encore d'UID Auth (créé avant
+          // premier signin). On laisse l'erreur passer — le flag Firestore
+          // bloquera déjà le signin OTP suivant.
+          console.warn("[owners/disable] auth update/revoke failed", e);
+        }
         return NextResponse.json({ ok: true });
       }
       case "enable": {
         await ownerRef.update({ disabledAt: 0 });
+        try {
+          await adminAuth.updateUser(id, { disabled: false });
+        } catch (e) {
+          console.warn("[owners/enable] auth update failed", e);
+        }
         return NextResponse.json({ ok: true });
       }
       case "sync-salons": {

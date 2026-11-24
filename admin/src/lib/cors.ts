@@ -14,11 +14,17 @@ import { NextResponse } from "next/server";
  * utilise les origins prod par défaut.
  */
 
-const DEFAULT_ORIGINS = [
+const PROD_ORIGINS = [
   "https://trimya-68ae2.web.app",
   "https://trimya-pro.web.app",
   "https://trimya-68ae2.firebaseapp.com",
-  // Dev local — à retirer en prod via override env
+];
+
+// Autorisé uniquement hors production. Si `ALLOWED_PWA_ORIGINS` est oublié
+// sur Vercel, on tombait sur cette liste par défaut EN PROD aussi, ce qui
+// laissait n'importe quelle page servie sur http://localhost:8081 appeler
+// les endpoints OTP/activate cross-origin.
+const DEV_ORIGINS = [
   "http://localhost:8081",
   "http://localhost:19006",
 ];
@@ -33,7 +39,11 @@ function allowedOrigins(): Set<string> {
         .filter(Boolean),
     );
   }
-  return new Set(DEFAULT_ORIGINS);
+  const base = [...PROD_ORIGINS];
+  if (process.env.NODE_ENV !== "production") {
+    base.push(...DEV_ORIGINS);
+  }
+  return new Set(base);
 }
 
 /**

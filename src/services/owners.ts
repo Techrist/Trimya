@@ -61,7 +61,16 @@ export async function findOwnerForAuthUser(
 ): Promise<Owner | null> {
   // 1) Lookup par uid (cas nominal)
   const byUid = await getOwner(user.uid);
-  if (byUid) return byUid;
+  if (byUid) {
+    // SÉCURITÉ — un owner désactivé par l'admin doit perdre l'accès
+    // immédiatement, même via OTP email. Sans ce check, le flag
+    // `disabledAt` posé dans Firestore par /api/owners/:id disable restait
+    // purement cosmétique côté PWA.
+    if (byUid.disabledAt && byUid.disabledAt > 0) {
+      throw new Error('Ce compte a été désactivé. Contacte Trimya.');
+    }
+    return byUid;
+  }
 
   // 2) Si l'owner existe par email mais avec un id différent, on log mais on
   //    ne retourne pas — l'admin doit relier manuellement (ou prévoir une

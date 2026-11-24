@@ -17,42 +17,52 @@ const ADMIN_API_URL =
   process.env.EXPO_PUBLIC_ADMIN_API_URL || 'https://trimya-admin.vercel.app';
 
 /**
- * Activate a salon kiosk using a one-time activation code.
+ * Active un kiosque salon via code one-shot. Désormais l'activation PASSE
+ * ENTIÈREMENT par l'endpoint Vercel `/api/activate` : la résolution
+ * code → salon + l'inscription du UID dans `kioskUserIds` + l'invalidation
+ * du code se font en une seule transaction côté serveur.
  *
- * Sécurité : la résolution code → salonId passe par la collection dédiée
- * `activationCodes/{code}` qui n'autorise QUE le get par doc id, pas le list.
- * Impossible d'énumérer les codes existants, contrairement à un `where`
- * sur la collection `salons` (qui requérait `list: if true`).
+ * Avant : le client faisait d'abord `getDoc(activationCodes/{code})` pour
+ * récupérer le salon à afficher, PUIS l'endpoint Vercel pour finaliser.
+ * Cette lecture directe exposait les codes à un brute-force (allow get si
+ * auth : n'importe quel user anonyme pouvait probe 24M codes).
  *
- * L'admin maintient cette collection : à chaque création/régénération de
- * code, un doc `activationCodes/{code}` est créé avec `{ salonId }`.
+ * Maintenant : un seul appel réseau, l'endpoint retourne le doc salon dans
+ * sa réponse, zéro lecture Firestore côté client sur la collection
+ * `activationCodes`.
  */
 export async function activateSalonByCode(code: string): Promise<Salon> {
   const normalized = code.trim().toUpperCase();
-
-  // 1) Résoudre le code → salonId via la collection dédiée (lookup-only).
-  const codeRef = doc(db, 'activationCodes', normalized);
-  const codeSnap = await getDoc(codeRef);
-  if (!codeSnap.exists()) {
-    throw new Error('Code invalide. Vérifie auprès de Trimya.');
+  const user = auth.currentUser;
+  if (!user) {
+    throw new Error('Session anonyme manquante. Redémarre l\'application.');
   }
-  const codeData = codeSnap.data() as {
+  const idToken = await user.getIdToken();
+
+  const res = await fetch(`${ADMIN_API_URL}/api/activate`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${idToken}`,
+    },
+    body: JSON.stringify({ code: normalized }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({ error: 'internal_error' }));
+    const err = (data as { error?: string }).error ?? 'internal_error';
+    // On mappe les codes serveur en messages français pour humanizeError.
+    if (err === 'invalid_code') throw new Error('Code invalide. Vérifie auprès de Trimya.');
+    if (err === 'code_already_used') throw new Error('Ce code a déjà été utilisé.');
+    if (err === 'salon_not_found') throw new Error('Salon introuvable.');
+    if (err === 'salon_disabled') throw new Error('Ce salon est désactivé.');
+    throw new Error(err);
+  }
+  const data = (await res.json()) as {
+    ok: true;
     salonId: string;
-    usedAt?: number;
-    oneShot?: boolean;
+    salon: Salon;
   };
-
-  // 2) Charger le doc salon (lecture restreinte aux authentifiés).
-  const salonRef = doc(db, 'salons', codeData.salonId);
-  const salonSnap = await getDoc(salonRef);
-  if (!salonSnap.exists()) {
-    throw new Error('Salon introuvable.');
-  }
-  const salonData = salonSnap.data() as Omit<Salon, 'id'>;
-  if (salonData.disabledAt && salonData.disabledAt > 0) {
-    throw new Error('Ce salon est désactivé.');
-  }
-  return { id: salonSnap.id, ...salonData };
+  return data.salon;
 }
 
 /** Souscrit en temps réel à un salon. */
@@ -114,52 +124,21 @@ export async function setSalonKioskPushToken(
 }
 
 /**
- * Enregistre l'UID authentifié comme kiosque autorisé pour ce salon, via
- * la Cloud Function `claimKioskSlot`.
+ * @deprecated — Depuis le refactor /api/activate, `activateSalonByCode`
+ * fait déjà la transaction complète côté serveur (validation du code +
+ * inscription du UID dans `kioskUserIds` + invalidation one-shot).
  *
- * Pourquoi une Cloud Function et pas un `updateDoc` direct ? Sécurité.
- * Avant ce fix, la règle Firestore autorisait n'importe quel auth user à
- * ajouter son UID à `salons.{id}.kioskUserIds` — donc n'importe qui qui
- * connaissait un salonId pouvait devenir kiosque de ce salon et lire
- * tous ses clients. La Cloud Function valide en transaction que le code
- * d'activation correspond au salon et n'a pas déjà été consommé.
- *
- * Le second paramètre `code` est obligatoire : c'est le code saisi par
- * l'utilisateur sur SalonActivationScreen. Si l'appel se fait sans code
- * (ré-activation auto), il faut au préalable récupérer un code valide.
+ * Cette fonction est conservée uniquement pour compat avec les callers
+ * existants mais est devenue un no-op. À retirer au prochain refactor
+ * de SalonActivationScreen.
  */
 export async function registerSalonKioskUid(
   salonId: string,
   code: string,
 ): Promise<void> {
-  // Migration de Cloud Function (plan Blaze non activé au Cameroun) vers
-  // endpoint Vercel admin /api/activate. L'auth se fait par Firebase ID
-  // token du user anonyme (ou authentifié) — le serveur vérifie avec
-  // adminAuth.verifyIdToken avant de toucher à Firestore.
-  //
-  // Note : le paramètre `salonId` n'est pas envoyé — le serveur le dérive
-  // du code d'activation (source de vérité). On le garde dans la signature
-  // pour compat avec les appelants existants.
   void salonId;
-
-  const user = auth.currentUser;
-  if (!user) {
-    throw new Error('Session anonyme manquante. Redémarre l\'application.');
-  }
-  const idToken = await user.getIdToken();
-
-  const res = await fetch(`${ADMIN_API_URL}/api/activate`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${idToken}`,
-    },
-    body: JSON.stringify({ code: code.trim().toUpperCase() }),
-  });
-
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({ error: 'internal_error' }));
-    const code = (data as { error?: string }).error ?? 'internal_error';
-    throw new Error(code);
-  }
+  void code;
+  // No-op : activateSalonByCode fait déjà toute la transaction côté
+  // serveur. Appeler l'endpoint une seconde fois échouerait avec
+  // "code_already_used" (le code est one-shot, consommé au premier appel).
 }

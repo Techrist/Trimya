@@ -646,6 +646,9 @@ export const en: typeof fr = {
   'salon.customer.cut.paid': 'Paid cut',
   'salon.customer.cut.reward': 'Free cut',
   'salon.customer.addCutOk': '✓ Cut added',
+  'salon.addCut.customerNotFound': 'Customer not found.',
+  'salon.profile.showCode': 'Show code',
+  'salon.profile.hideCode': 'Hide code',
   'salon.customer.rewardOk': '🎁 Free cut validated',
   'salon.customer.rewardUnlockedNote': '\n\nThe next cut will be free 🎉',
 

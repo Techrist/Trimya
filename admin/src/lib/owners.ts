@@ -79,11 +79,16 @@ export async function removeSalonFromOwner(
 }
 
 function generateTempPassword(): string {
+  // SÉCURITÉ — CSPRNG obligatoire. Math.random est prédictible depuis
+  // l'état du worker Vercel ; un attaquant qui obtient un mot de passe
+  // temporaire peut deviner tous les autres générés sur la même instance.
   const alphabet =
     "ABCDEFGHJKMNPQRSTUVWXYZ23456789abcdefghjkmnpqrstuvwxyz!#$%";
+  const bytes = new Uint8Array(14);
+  crypto.getRandomValues(bytes);
   let out = "";
   for (let i = 0; i < 14; i++) {
-    out += alphabet[Math.floor(Math.random() * alphabet.length)];
+    out += alphabet[bytes[i]! % alphabet.length];
   }
   return out;
 }

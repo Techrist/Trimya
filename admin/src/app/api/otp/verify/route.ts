@@ -76,7 +76,12 @@ export async function POST(req: NextRequest) {
 
   // ─── 2) Vérifier le code (transaction) ────────────────────
   const docRef = adminDb.collection("emailOtps").doc(email);
-  let role: "client" | "owner" = "client";
+  type Role = "client" | "owner";
+  // Rôle demandé initialement par le client dans /api/otp/send. Utilisé
+  // uniquement en garde (ligne ~182) pour refuser un signin owner quand
+  // aucun doc owners/{uid} n'existe. Le rôle *réel* assigné dans le
+  // custom token vient du lookup serveur.
+  let role: Role = "client" as Role;
 
   try {
     const verdict = await adminDb.runTransaction(async (tx) => {
@@ -155,16 +160,50 @@ export async function POST(req: NextRequest) {
       uid = newUser.uid;
     }
 
-    // ─── 4) Créer un Custom Token ─────────────────────────────
-    // Le role est embedded dans les custom claims — l'app peut lire
-    // getIdTokenResult().claims.role sans requête Firestore.
+    // ─── 4) Résoudre le role côté SERVEUR (anti-escalation) ───
+    // Ne jamais faire confiance au `role` envoyé par le client dans
+    // /api/otp/send : il est juste un hint UI. La vérité vient de la
+    // présence d'un doc owners/{uid}. Un attaquant qui demanderait
+    // `role: 'owner'` sans doc owner correspondant se verrait attribuer
+    // 'client' ici → pas d'escalade possible via le claim.
+    const ownerSnap = await adminDb.collection("owners").doc(uid).get();
+    const resolvedRole: "client" | "owner" = ownerSnap.exists
+      ? "owner"
+      : "client";
+    // Rejet rapide si l'owner existe mais a été désactivé par l'admin.
+    if (ownerSnap.exists) {
+      const d = ownerSnap.data() ?? {};
+      if (typeof d.disabledAt === "number" && d.disabledAt > 0) {
+        return withCors(
+          NextResponse.json({ error: "account_disabled" }, { status: 403 }),
+          origin,
+        );
+      }
+    }
+    // Si le client a demandé 'owner' mais que le serveur résout 'client',
+    // c'est que l'owner n'existe pas encore. On refuse pour que l'UI
+    // affiche un message clair plutôt que de router vers OwnerTabs puis
+    // échouer silencieusement sur findOwnerForAuthUser.
+    if (role === "owner" && resolvedRole !== "owner") {
+      return withCors(
+        NextResponse.json({ error: "not_an_owner" }, { status: 403 }),
+        origin,
+      );
+    }
+
+    // ─── 5) Créer un Custom Token avec le role RÉSOLU ────────
     const customToken = await adminAuth.createCustomToken(uid, {
-      role,
+      role: resolvedRole,
       viaOtp: true,
     });
 
     return withCors(
-      NextResponse.json({ ok: true, token: customToken, role, uid }),
+      NextResponse.json({
+        ok: true,
+        token: customToken,
+        role: resolvedRole,
+        uid,
+      }),
       origin,
     );
   } catch (e: unknown) {
