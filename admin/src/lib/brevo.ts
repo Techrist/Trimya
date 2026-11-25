@@ -86,8 +86,17 @@ export async function sendBrevoEmail(
 }
 
 /**
+ * Logo affiché en tête de l'email. Un email ne peut pas embarquer une image
+ * locale ni un data-URI (bloqués par Gmail et Outlook) : l'image doit être
+ * servie par une URL publique en HTTPS. Le fichier vit dans
+ * `admin/public/email/logo.png` (160x160, ~12 Ko, affiché à 80 px pour les
+ * écrans haute densité) et est donc servi par le site vitrine.
+ */
+const EMAIL_LOGO_URL = "https://www.trimya.app/email/logo.png";
+
+/**
  * Template email OTP — HTML sobre, lisible même sans CSS externe.
- * On garde le branding minimal : titre, code en gros, note de sécurité.
+ * On garde le branding minimal : logo, titre, code en gros, note de sécurité.
  */
 export function renderOtpEmail(params: {
   code: string;
@@ -99,7 +108,7 @@ export function renderOtpEmail(params: {
   <body style="margin:0;padding:0;background:#0b0b0d;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#f4f4f5;">
     <div style="max-width:560px;margin:0 auto;padding:40px 24px;">
       <div style="text-align:center;margin-bottom:32px;">
-        <div style="display:inline-block;background:linear-gradient(135deg,#FFEB3B 0%,#FF5722 100%);width:48px;height:48px;border-radius:12px;line-height:48px;font-size:24px;font-weight:700;color:#0b0b0d;">T</div>
+        <img src="${EMAIL_LOGO_URL}" width="80" height="80" alt="Trimya" style="display:inline-block;width:80px;height:80px;border:0;outline:none;text-decoration:none;" />
       </div>
       <h1 style="font-size:24px;font-weight:700;margin:0 0 12px;color:#f4f4f5;">Ton code Trimya</h1>
       <p style="font-size:15px;line-height:1.5;color:#a1a1aa;margin:0 0 32px;">
@@ -109,7 +118,7 @@ export function renderOtpEmail(params: {
         <div style="font-size:36px;font-weight:700;letter-spacing:8px;color:#FF5722;font-family:ui-monospace,'SF Mono',Menlo,monospace;">${safeCode}</div>
       </div>
       <p style="font-size:13px;line-height:1.5;color:#71717a;margin:0 0 8px;">
-        Tu n'as pas demandé ce code ? Ignore cet email — ton compte reste sécurisé.
+        Tu n'as pas demandé ce code ? Ignore cet email, ton compte reste sécurisé.
       </p>
       <p style="font-size:13px;line-height:1.5;color:#71717a;margin:0;">
         Trimya ne te demandera jamais ce code par téléphone ou SMS.
