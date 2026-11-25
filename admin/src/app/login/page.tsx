@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
-import { Lock, Mail, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail, ShieldCheck } from "lucide-react";
 import { auth } from "@/lib/firebase-client";
 import { login } from "@/lib/auth-client";
 import { Button } from "@/components/ui/Button";
@@ -13,6 +13,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -36,6 +37,8 @@ export default function LoginPage() {
       // Friendlier message for Firebase's default codes
       if (msg.includes("auth/invalid-credential")) {
         setError("Email ou mot de passe incorrect.");
+      } else if (msg.includes("auth/invalid-email")) {
+        setError("Adresse email invalide. Vérifie qu'elle est bien saisie.");
       } else if (msg.includes("auth/too-many-requests")) {
         setError(
           "Trop de tentatives. Réessaie dans quelques minutes ou réinitialise le mot de passe.",
@@ -81,15 +84,32 @@ export default function LoginPage() {
             <Lock className="pointer-events-none absolute left-3 top-[34px] h-4 w-4 text-text-dim" />
             <Input
               id="password"
-              type="password"
+              type={showPassword ? "text" : "password"}
               label="Mot de passe"
               placeholder="••••••••"
               autoComplete="current-password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="pl-9"
+              className="pl-9 pr-10"
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={
+                showPassword
+                  ? "Masquer le mot de passe"
+                  : "Afficher le mot de passe"
+              }
+              aria-pressed={showPassword}
+              className="absolute right-3 top-[32px] rounded p-0.5 text-text-dim transition-colors hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+            >
+              {showPassword ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
+            </button>
           </div>
 
           {error ? (
