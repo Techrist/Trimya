@@ -5,7 +5,7 @@ import type { MetadataRoute } from "next";
  * Mise à jour à chaque build Vercel.
  */
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = "https://trimya.com";
+  const baseUrl = "https://www.trimya.app";
   const now = new Date();
   return [
     {

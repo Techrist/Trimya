@@ -15,6 +15,12 @@ import { NextResponse } from "next/server";
  */
 
 const PROD_ORIGINS = [
+  // Domaines custom (trimya.app)
+  "https://app.trimya.app",
+  "https://pro.trimya.app",
+  // Domaines Firebase par défaut — gardés en secours : les PWA restent
+  // joignables dessus, et les utilisateurs qui ont installé l'app avant la
+  // migration continuent de fonctionner.
   "https://trimya-68ae2.web.app",
   "https://trimya-pro.web.app",
   "https://trimya-68ae2.firebaseapp.com",

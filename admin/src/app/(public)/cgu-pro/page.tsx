@@ -122,7 +122,7 @@ export default function CGUProPage() {
       <h2>7. Résiliation et rétrogradation</h2>
       <p>
         Vous pouvez résilier à tout moment par email à{" "}
-        <a href="mailto:contact@trimya.com">contact@trimya.com</a>. Aucun
+        <a href="mailto:contact@trimya.app">contact@trimya.app</a>. Aucun
         remboursement n&apos;est dû pour la période restante, mais le compte
         garde l&apos;accès jusqu&apos;à l&apos;échéance prépayée.
       </p>
@@ -226,7 +226,7 @@ export default function CGUProPage() {
 
       <h2>16. Contact commercial et support</h2>
       <p>
-        📧 <a href="mailto:contact@trimya.com">contact@trimya.com</a>
+        📧 <a href="mailto:contact@trimya.app">contact@trimya.app</a>
         <br />
         💬{" "}
         <a

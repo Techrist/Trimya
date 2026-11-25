@@ -203,7 +203,7 @@ export const fr = {
   'legal.inlinePrefix': 'En continuant, tu acceptes nos',
   'legal.inlineAnd': ' et notre ',
   'legal.openErrorTitle': 'Impossible d\'ouvrir',
-  'legal.openErrorText': 'Tu peux consulter ces documents sur trimya.com.',
+  'legal.openErrorText': 'Tu peux consulter ces documents sur trimya.app.',
   'legal.profileHint': 'Tu peux consulter ces documents à tout moment depuis l\'app.',
 
   // ── Erreurs humanisées (cf. src/lib/humanizeError.ts) ─────
@@ -243,7 +243,7 @@ export const fr = {
   'error.trimya.rateLimited': 'Trop d\'actions à la suite. Patiente une minute.',
   'error.trimya.planRequired': 'Cette fonctionnalité nécessite un plan supérieur.',
   'error.trimya.accountDisabled': 'Ton compte a été désactivé. Contacte Trimya pour plus d\'informations.',
-  'error.trimya.cannotOpenLink': 'Impossible d\'ouvrir le lien. Tu peux le consulter sur trimya.com.',
+  'error.trimya.cannotOpenLink': 'Impossible d\'ouvrir le lien. Tu peux le consulter sur trimya.app.',
 
   // ── Statuts partagés pour homeServiceRequests ────────────
   'home.status.pending': 'En attente',

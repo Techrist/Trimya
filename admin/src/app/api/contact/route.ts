@@ -6,12 +6,12 @@ import { classifyError, logServerError } from "@/lib/api-errors";
 
 /**
  * POST /api/contact — Réception d'un formulaire de contact depuis le site
- * marketing trimya.com/contact.
+ * marketing trimya.app/contact.
  *
  * Pour ne pas dépendre d'un service email tiers en v1, on persiste les
  * leads dans Firestore (`contactRequests/{id}`) et l'équipe Trimya les
  * traite depuis Trimya Admin. Plus tard on pourra ajouter un envoi email
- * automatique vers contact@trimya.com via Resend ou SendGrid.
+ * automatique vers contact@trimya.app via Resend ou SendGrid.
  */
 const BodySchema = z.object({
   name: z.string().min(2).max(100),

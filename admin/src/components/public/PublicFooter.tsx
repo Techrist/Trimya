@@ -3,7 +3,7 @@ import Image from "next/image";
 import { Mail, MessageCircle, Globe } from "lucide-react";
 
 /**
- * Footer global trimya.com — liens produit, légal, contact, social.
+ * Footer global trimya.app — liens produit, légal, contact, social.
  */
 export function PublicFooter() {
   return (
@@ -44,7 +44,7 @@ export function PublicFooter() {
             title="Entreprise"
             links={[
               { href: "/contact", label: "Contact commercial" },
-              { href: "mailto:contact@trimya.com", label: "contact@trimya.com" },
+              { href: "mailto:contact@trimya.app", label: "contact@trimya.app" },
               { href: "https://wa.me/237692979345", label: "WhatsApp" },
             ]}
           />
@@ -77,12 +77,12 @@ export function PublicFooter() {
               <span>+237 692 979 345</span>
             </a>
             <a
-              href="mailto:contact@trimya.com"
+              href="mailto:contact@trimya.app"
               className="inline-flex items-center gap-1.5 hover:text-text"
               aria-label="Email"
             >
               <Mail className="h-4 w-4" strokeWidth={2} />
-              <span>contact@trimya.com</span>
+              <span>contact@trimya.app</span>
             </a>
           </div>
         </div>

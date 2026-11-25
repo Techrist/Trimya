@@ -17,7 +17,7 @@ import { REWARD_THRESHOLD } from '@/theme';
  * Cloud Function `addCutSecure` (plan Blaze non activé au Cameroun).
  */
 const ADMIN_API_URL =
-  process.env.EXPO_PUBLIC_ADMIN_API_URL || 'https://trimya-admin.vercel.app';
+  process.env.EXPO_PUBLIC_ADMIN_API_URL || 'https://admin.trimya.app';
 
 /**
  * Charge un salon de façon défensive (renvoie null si introuvable ou erreur de

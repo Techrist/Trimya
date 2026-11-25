@@ -6,7 +6,7 @@ import { colors, spacing, typography } from '@/theme';
 
 /**
  * Liens vers les documents légaux (Politique de confidentialité + CGU
- * correspondante à la cible de build) hébergés sur trimya.com.
+ * correspondante à la cible de build) hébergés sur trimya.app.
  *
  * Trois variantes d'affichage :
  *  - `variant='inline'` : phrase compacte avec liens cliquables (signup,
@@ -24,9 +24,9 @@ interface Props {
 }
 
 const URLS = {
-  privacy: 'https://trimya.com/privacy',
-  cguClient: 'https://trimya.com/cgu',
-  cguPro: 'https://trimya.com/cgu-pro',
+  privacy: 'https://www.trimya.app/privacy',
+  cguClient: 'https://www.trimya.app/cgu',
+  cguPro: 'https://www.trimya.app/cgu-pro',
 };
 
 async function open(url: string, t: (key: any) => string) {

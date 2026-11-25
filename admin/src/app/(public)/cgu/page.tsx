@@ -126,7 +126,7 @@ export default function CGUPage() {
       <p>
         Vous pouvez supprimer votre compte à tout moment depuis
         l&apos;application ou par email à{" "}
-        <a href="mailto:contact@trimya.com">contact@trimya.com</a>.
+        <a href="mailto:contact@trimya.app">contact@trimya.app</a>.
       </p>
       <p>
         Trimya peut suspendre un compte en cas de violation des CGU,
@@ -148,7 +148,7 @@ export default function CGUPage() {
 
       <h2>14. Contact</h2>
       <p>
-        📧 <a href="mailto:contact@trimya.com">contact@trimya.com</a>
+        📧 <a href="mailto:contact@trimya.app">contact@trimya.app</a>
         <br />
         💬{" "}
         <a

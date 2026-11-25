@@ -21,13 +21,13 @@ import { auth } from './firebase';
 /**
  * URL du backend admin qui héberge /api/otp/*.
  *
- * - En prod : https://trimya-admin.vercel.app (ou le domaine custom Vercel)
+ * - En prod : https://admin.trimya.app
  * - En dev local : http://localhost:3000 si tu lances `npm run dev` dans admin/
  *
  * Configurable via EXPO_PUBLIC_ADMIN_API_URL — si absent on tombe sur la prod.
  */
 const ADMIN_API_URL =
-  process.env.EXPO_PUBLIC_ADMIN_API_URL || 'https://trimya-admin.vercel.app';
+  process.env.EXPO_PUBLIC_ADMIN_API_URL || 'https://admin.trimya.app';
 
 export interface OtpSendResult {
   ok: boolean;

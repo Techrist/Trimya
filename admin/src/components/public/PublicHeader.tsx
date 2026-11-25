@@ -8,7 +8,7 @@ import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 /**
- * Header global des pages publiques de trimya.com.
+ * Header global des pages publiques de trimya.app.
  * Sticky en haut, fond sombre semi-transparent, logo + nav + CTAs.
  */
 

@@ -149,7 +149,7 @@ export const en: typeof fr = {
   'legal.inlinePrefix': 'By continuing, you accept our',
   'legal.inlineAnd': ' and ',
   'legal.openErrorTitle': 'Cannot open link',
-  'legal.openErrorText': 'You can view these documents at trimya.com.',
+  'legal.openErrorText': 'You can view these documents at trimya.app.',
   'legal.profileHint': 'You can review these documents anytime from the app.',
 
   // ── Humanized errors (cf. src/lib/humanizeError.ts) ───────
@@ -186,7 +186,7 @@ export const en: typeof fr = {
   'error.trimya.rateLimited': 'Too many actions in a row. Wait a minute.',
   'error.trimya.planRequired': 'This feature requires a higher plan.',
   'error.trimya.accountDisabled': 'Your account has been disabled. Contact Trimya for more info.',
-  'error.trimya.cannotOpenLink': 'Cannot open the link. You can view it at trimya.com.',
+  'error.trimya.cannotOpenLink': 'Cannot open the link. You can view it at trimya.app.',
 
   // ── Shared statuses for homeServiceRequests ──────────────
   'home.status.pending': 'Pending',

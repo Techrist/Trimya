@@ -29,7 +29,7 @@ export default function PrivacyPage() {
         <br />
         Yaoundé, Cameroun
         <br />
-        Email : <a href="mailto:contact@trimya.com">contact@trimya.com</a>
+        Email : <a href="mailto:contact@trimya.app">contact@trimya.app</a>
         <br />
         WhatsApp :{" "}
         <a
@@ -206,7 +206,7 @@ export default function PrivacyPage() {
       </ul>
       <p>
         Pour exercer ces droits, contactez-nous à{" "}
-        <a href="mailto:contact@trimya.com">contact@trimya.com</a>. Réponse
+        <a href="mailto:contact@trimya.app">contact@trimya.app</a>. Réponse
         sous 30 jours maximum.
       </p>
 
@@ -235,7 +235,7 @@ export default function PrivacyPage() {
 
       <h2>11. Contact</h2>
       <p>
-        📧 <a href="mailto:contact@trimya.com">contact@trimya.com</a>
+        📧 <a href="mailto:contact@trimya.app">contact@trimya.app</a>
         <br />
         💬{" "}
         <a

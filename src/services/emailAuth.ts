@@ -62,8 +62,8 @@ function buildContinueUrl(continuePath: string = '/'): string {
   if (Platform.OS !== 'web' || typeof window === 'undefined') {
     const isPro = isProApp();
     const host = isPro
-      ? 'https://trimya-pro.web.app'
-      : 'https://trimya-68ae2.web.app';
+      ? 'https://pro.trimya.app'
+      : 'https://app.trimya.app';
     return `${host}${continuePath}`;
   }
   // Web : on part de l'origin courant. Garantit que si l'user clique le lien

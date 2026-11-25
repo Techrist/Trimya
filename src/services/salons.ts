@@ -14,7 +14,7 @@ import { Salon } from '@/types';
  * en dev si besoin.
  */
 const ADMIN_API_URL =
-  process.env.EXPO_PUBLIC_ADMIN_API_URL || 'https://trimya-admin.vercel.app';
+  process.env.EXPO_PUBLIC_ADMIN_API_URL || 'https://admin.trimya.app';
 
 /**
  * Active un kiosque salon via code one-shot. Désormais l'activation PASSE

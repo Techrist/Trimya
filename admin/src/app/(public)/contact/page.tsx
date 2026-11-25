@@ -67,8 +67,8 @@ export default function ContactPage() {
             <ContactCard
               icon={Mail}
               label="Email"
-              value="contact@trimya.com"
-              href="mailto:contact@trimya.com"
+              value="contact@trimya.app"
+              href="mailto:contact@trimya.app"
               hint="Sous 24h ouvrées"
             />
             <ContactCard

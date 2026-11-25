@@ -72,7 +72,7 @@ functions/
 
 
 # ── 8. Admin web Next.js (déployé séparément sur Vercel) ─────────
-# Le site web trimya.com (marketing + admin) vit dans admin/ et est
+# Le site web trimya.app (marketing + admin) vit dans admin/ et est
 # déployé via `vercel --prod` ou push Git. Pas de lien avec EAS Build.
 admin/
 

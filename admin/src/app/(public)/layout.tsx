@@ -21,12 +21,12 @@ export const metadata: Metadata = {
     "gestion salon",
   ],
   authors: [{ name: "Trimya" }],
-  metadataBase: new URL("https://trimya.com"),
+  metadataBase: new URL("https://www.trimya.app"),
   openGraph: {
     title: "Trimya — La fidélité, à la vitesse d'une coupe.",
     description:
       "Carte de fidélité numérique pour les salons de coiffure africains.",
-    url: "https://trimya.com",
+    url: "https://www.trimya.app",
     siteName: "Trimya",
     locale: "fr_FR",
     type: "website",

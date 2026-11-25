@@ -13,6 +13,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ["/dashboard/", "/login", "/api/"],
       },
     ],
-    sitemap: "https://trimya.com/sitemap.xml",
+    sitemap: "https://www.trimya.app/sitemap.xml",
   };
 }
