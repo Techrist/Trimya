@@ -19,9 +19,9 @@ import {
 } from "@/components/public/primitives";
 
 export const metadata: Metadata = {
-  title: "Pour les salons",
+  title: "Logiciel de gestion pour salon de coiffure et barbier",
   description:
-    "Trimya Pro : le logiciel de gestion conçu pour les salons de coiffure africains. Scanner QR, fiche client, équipe, stats, à partir de 10 000 FCFA/mois.",
+    "Trimya Pro : logiciel de gestion de salon de coiffure conçu pour l'Afrique. Carte de fidélité par QR code, fiche client, gestion de l'équipe, réservations en ligne, statistiques. Dès 10 000 FCFA/mois.",
 };
 
 export default function SalonsPage() {
@@ -29,7 +29,7 @@ export default function SalonsPage() {
     <>
       <Hero
         spotlight
-        eyebrow="Pour les salons"
+        eyebrow="Pour les salons de coiffure et barbiers"
         title={
           <>
             Le logiciel de gestion
@@ -39,7 +39,7 @@ export default function SalonsPage() {
             </span>
           </>
         }
-        description="Scanner QR, fiche client, équipe, statistiques, abonnement coupes illimitées. Une tablette à l'accueil et tout est sous contrôle. À partir de 10 000 FCFA par mois."
+        description="Carte de fidélité par QR code, fiche client, gestion de l'équipe de coiffeurs, réservations en ligne, file d'attente, statistiques et abonnement coupes illimitées. Une tablette à l'accueil et tout est sous contrôle. À partir de 10 000 FCFA par mois."
         primaryCta={{ label: "Démarrer la démo", href: "/contact" }}
         secondaryCta={{ label: "Voir les tarifs", href: "/tarifs" }}
       />

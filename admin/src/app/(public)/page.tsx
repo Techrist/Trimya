@@ -22,9 +22,70 @@ import {
   CheckList,
 } from "@/components/public/primitives";
 
+/**
+ * Données structurées (schema.org) : elles disent à Google, sans ambiguïté,
+ * qui est Trimya, quel est le site, et quelles sont les deux applications.
+ * N'y figure que ce qui est vrai aujourd'hui : l'app client est gratuite,
+ * les deux applications fonctionnent sur le web.
+ */
+const SITE_URL = "https://www.trimya.app";
+const structuredData = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": `${SITE_URL}/#organization`,
+      name: "Trimya",
+      url: SITE_URL,
+      logo: `${SITE_URL}/logo-mark.png`,
+      email: "contact@trimya.app",
+      description:
+        "Trimya édite une application de carte de fidélité et un logiciel de gestion pour les salons de coiffure et barbiers en Afrique.",
+    },
+    {
+      "@type": "WebSite",
+      "@id": `${SITE_URL}/#website`,
+      url: SITE_URL,
+      name: "Trimya",
+      inLanguage: "fr",
+      publisher: { "@id": `${SITE_URL}/#organization` },
+    },
+    {
+      "@type": "SoftwareApplication",
+      name: "Trimya",
+      url: "https://app.trimya.app",
+      applicationCategory: "LifestyleApplication",
+      operatingSystem: "Web",
+      description:
+        "Carte de fidélité digitale pour les clients de salons de coiffure : QR code, coupe offerte, réservations, file d'attente.",
+      offers: { "@type": "Offer", price: "0", priceCurrency: "XAF" },
+      publisher: { "@id": `${SITE_URL}/#organization` },
+    },
+    {
+      "@type": "SoftwareApplication",
+      name: "Trimya Pro",
+      url: "https://pro.trimya.app",
+      applicationCategory: "BusinessApplication",
+      operatingSystem: "Web",
+      description:
+        "Logiciel de gestion de salon de coiffure : scan QR, fiches clients, équipe, réservations, statistiques.",
+      publisher: { "@id": `${SITE_URL}/#organization` },
+    },
+  ],
+};
+
 export default function HomePage() {
   return (
     <>
+      {/* Données structurées JSON-LD (le `<` est échappé pour éviter toute
+          injection de balise dans le script). */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(structuredData).replace(/</g, "\\u003c"),
+        }}
+      />
+
       {/* HERO */}
       <Hero
         spotlight
@@ -38,7 +99,7 @@ export default function HomePage() {
             </span>
           </>
         }
-        description="Trimya transforme la carte de fidélité coiffeur en une expérience digitale fluide. 4 coupes payées, la 5ᵉ offerte — automatiquement, sans triche, sans paperasse."
+        description="Trimya est l'application de carte de fidélité pour salons de coiffure et barbiers. Chaque client garde sa carte dans son téléphone : 4 coupes payées, la 5ᵉ offerte, automatiquement, sans triche, sans paperasse."
         primaryCta={{ label: "Démarrer gratuitement", href: "/contact" }}
         secondaryCta={{ label: "Voir les tarifs", href: "/tarifs" }}
       />
@@ -71,7 +132,7 @@ export default function HomePage() {
 
       {/* 3 FEATURES KEY */}
       <Section
-        eyebrow="Comment ça marche"
+        eyebrow="Comment fonctionne la carte de fidélité"
         title="Trois secondes, trois étapes"
         description="Tout est conçu pour ne PAS interrompre la vraie vie du salon."
       >
@@ -80,7 +141,7 @@ export default function HomePage() {
             icon={Smartphone}
             tone="primary"
             title="1. Le client présente son QR"
-            description="Inscription par SMS en 30 secondes. Son code QR est dans sa poche, jamais perdu, jamais mouillé."
+            description="Inscription par email en 30 secondes. Son code QR est dans sa poche, jamais perdu, jamais mouillé."
           />
           <FeatureCard
             icon={Zap}
@@ -99,7 +160,7 @@ export default function HomePage() {
 
       {/* PERSONA SECTIONS */}
       <Section
-        eyebrow="Pour qui"
+        eyebrow="Pour les clients, les salons de coiffure et les chaînes"
         title="Une plateforme, trois utilisateurs"
         description="Chacun a son app et son expérience taillée sur mesure."
       >
@@ -163,7 +224,7 @@ export default function HomePage() {
       {/* WHY TRIMYA */}
       <Section
         eyebrow="Pourquoi Trimya"
-        title="Pensé pour le marché africain"
+        title="Pensé pour les salons de coiffure africains"
         description="On a regardé les salons du quartier avant de coder une seule ligne."
       >
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">

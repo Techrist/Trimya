@@ -4,21 +4,24 @@ import { PublicFooter } from "@/components/public/PublicFooter";
 
 export const metadata: Metadata = {
   title: {
-    default: "Trimya — La fidélité, à la vitesse d'une coupe.",
+    default: "Trimya | Carte de fidélité pour salons de coiffure",
     template: "%s · Trimya",
   },
   description:
-    "Trimya remplace la carte papier de fidélité par une expérience digitale fluide. Pour les clients : 4 coupes payées, la 5ᵉ offerte. Pour les salons : gestion clients, équipe, stats temps réel.",
+    "Application de fidélité pour salons de coiffure et barbiers en Afrique : carte de fidélité digitale par QR code, coupe offerte, réservations et gestion des clients.",
   keywords: [
-    "fidélité coiffeur",
-    "carte fidélité",
-    "coupe gratuite",
-    "salon coiffure",
+    "carte de fidélité coiffeur",
+    "carte de fidélité digitale",
+    "application salon de coiffure",
+    "logiciel de gestion salon de coiffure",
+    "fidélisation client coiffeur",
+    "coupe offerte",
     "barbier",
-    "QR code",
-    "Cameroun",
-    "Afrique",
-    "gestion salon",
+    "QR code fidélité",
+    "réservation coiffeur en ligne",
+    "file d'attente salon de coiffure",
+    "salon de coiffure Cameroun",
+    "salon de coiffure Afrique",
   ],
   authors: [{ name: "Trimya" }],
   metadataBase: new URL("https://www.trimya.app"),
@@ -35,9 +38,9 @@ export const metadata: Metadata = {
     canonical: "./",
   },
   openGraph: {
-    title: "Trimya — La fidélité, à la vitesse d'une coupe.",
+    title: "Trimya | Carte de fidélité pour salons de coiffure",
     description:
-      "Carte de fidélité numérique pour les salons de coiffure africains.",
+      "Carte de fidélité digitale pour les salons de coiffure et barbiers africains : QR code, coupe offerte, réservations.",
     url: "https://www.trimya.app",
     siteName: "Trimya",
     locale: "fr_FR",
@@ -53,9 +56,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Trimya — La fidélité, à la vitesse d'une coupe.",
+    title: "Trimya | Carte de fidélité pour salons de coiffure",
     description:
-      "Carte de fidélité numérique pour les salons de coiffure africains.",
+      "Carte de fidélité digitale pour les salons de coiffure et barbiers africains : QR code, coupe offerte, réservations.",
     images: ["/logo-mark.png"],
   },
 };

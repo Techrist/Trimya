@@ -17,9 +17,9 @@ import {
 } from "@/components/public/primitives";
 
 export const metadata: Metadata = {
-  title: "Pour les clients",
+  title: "Carte de fidélité coiffeur gratuite sur ton téléphone",
   description:
-    "Carte de fidélité coiffeur dans ton téléphone. 4 coupes payées, la 5ᵉ offerte. Réservations, file d'attente, coupe à domicile.",
+    "Ta carte de fidélité coiffeur dans ton téléphone : 4 coupes payées, la 5ᵉ offerte. Réserve ta coupe, rejoins la file d'attente ou commande un coiffeur à domicile.",
 };
 
 export default function ClientsPage() {
@@ -37,7 +37,7 @@ export default function ClientsPage() {
             </span>
           </>
         }
-        description="Plus de carte papier qui se perd. Ton coiffeur scanne ton QR code, le compteur monte, et au bout de quelques coupes, la suivante est offerte. Gratuit pour toujours."
+        description="Plus de carte de fidélité papier qui se perd. Ton coiffeur ou ton barbier scanne ton QR code, le compteur monte, et au bout de quelques coupes, la suivante est offerte. Réserve ton créneau en ligne, rejoins la file d'attente ou commande une coupe à domicile. Gratuit pour toujours."
         primaryCta={{ label: "Télécharger Trimya", href: "#download" }}
         secondaryCta={{ label: "Découvrir les features", href: "#features" }}
       />
@@ -109,13 +109,13 @@ export default function ClientsPage() {
         <div className="grid gap-8 md:grid-cols-3">
           <Step
             number="1"
-            title="Télécharge Trimya"
-            description="App gratuite sur App Store et Google Play. Pas d'abonnement, pas d'achat in-app."
+            title="Ouvre Trimya sur ton téléphone"
+            description="App gratuite, utilisable depuis ton navigateur et installable sur ton écran d'accueil. Bientôt sur App Store et Google Play. Pas d'abonnement, pas d'achat in-app."
           />
           <Step
             number="2"
-            title="Inscris-toi par SMS"
-            description="Numéro de téléphone, prénom, c'est tout. 30 secondes."
+            title="Connecte-toi avec ton email"
+            description="Ton adresse email, un code à 6 chiffres reçu dans ta boîte, ton prénom. 30 secondes."
           />
           <Step
             number="3"

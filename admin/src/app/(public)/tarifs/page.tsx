@@ -4,9 +4,9 @@ import { Check, X } from "lucide-react";
 import { Hero, CTABand } from "@/components/public/primitives";
 
 export const metadata: Metadata = {
-  title: "Tarifs",
+  title: "Tarifs du logiciel pour salon de coiffure",
   description:
-    "5 plans Trimya, du gratuit au chaîne premium. Salon individuel à partir de 0 FCFA/mois. Chaînes à partir de 25 000 FCFA/mois.",
+    "Tarifs de Trimya, l'application de gestion et de fidélité pour salon de coiffure : 5 plans du gratuit au plan chaîne. Salon individuel dès 0 FCFA/mois, chaînes dès 25 000 FCFA/mois.",
 };
 
 interface Plan {

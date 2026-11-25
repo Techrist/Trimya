@@ -16,9 +16,9 @@ import {
 } from "@/components/public/primitives";
 
 export const metadata: Metadata = {
-  title: "Pour les chaînes",
+  title: "Gestion multi-salons pour chaînes de salons de coiffure",
   description:
-    "Trimya Entreprise : pilote plusieurs salons depuis un compte unique. Dashboard consolidé, fidélité partagée, transferts coiffeurs. À partir de 25 000 FCFA/mois.",
+    "Trimya Entreprise : pilote plusieurs salons de coiffure depuis un seul compte. Tableau de bord consolidé, carte de fidélité partagée entre tes salons, transferts de coiffeurs. Dès 25 000 FCFA/mois.",
 };
 
 export default function ProprietairesPage() {
@@ -26,7 +26,7 @@ export default function ProprietairesPage() {
     <>
       <Hero
         spotlight
-        eyebrow="Pour les chaînes"
+        eyebrow="Pour les chaînes de salons de coiffure"
         title={
           <>
             Pilote ta chaîne
@@ -36,7 +36,7 @@ export default function ProprietairesPage() {
             </span>
           </>
         }
-        description="Multi-salons, dashboard consolidé, fidélité partagée, transferts de coiffeurs en 1 clic. Jusqu'à 5 établissements sous un même compte. À partir de 25 000 FCFA/mois."
+        description="Gestion multi-salons de coiffure, tableau de bord consolidé, carte de fidélité partagée entre tes salons, transferts de coiffeurs en 1 clic. Jusqu'à 5 établissements sous un même compte. À partir de 25 000 FCFA/mois."
         primaryCta={{ label: "Demander une démo", href: "/contact" }}
         secondaryCta={{ label: "Voir les tarifs", href: "/tarifs" }}
       />
