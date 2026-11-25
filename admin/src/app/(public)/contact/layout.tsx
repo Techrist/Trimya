@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import { JsonLd, breadcrumbList } from "@/lib/jsonld";
 
 /**
  * La page contact est un composant client ("use client"), qui ne peut pas
- * exporter de métadonnées. Ce layout de segment les porte à sa place.
+ * exporter de métadonnées ni rendre de données structurées. Ce layout de
+ * segment (composant serveur) les porte à sa place.
  */
 export const metadata: Metadata = {
   title: "Contact et démo pour salons de coiffure",
@@ -15,5 +17,10 @@ export default function ContactLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return children;
+  return (
+    <>
+      <JsonLd data={breadcrumbList([{ name: "Contact", path: "/contact" }])} />
+      {children}
+    </>
+  );
 }

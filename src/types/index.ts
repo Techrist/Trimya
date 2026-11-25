@@ -208,6 +208,14 @@ export interface Customer {
   pushToken?: string;
   pushTokenUpdatedAt?: number;
   pushEnabled?: boolean;
+  /**
+   * Preuve du consentement donné à la création du compte : quand le client
+   * a coché la case « j'accepte les CGU et la politique de confidentialité »
+   * (ms epoch) et sur quelle version des documents (ex. « 2026-11-25 »).
+   * Absent pour les comptes créés avant l'introduction de la case.
+   */
+  termsAcceptedAt?: number;
+  termsVersion?: string;
   // ── Informations personnelles enrichies ──────────
   /**
    * Nom de famille du client (optionnel, défini dans le profil).

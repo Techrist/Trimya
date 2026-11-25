@@ -44,7 +44,7 @@ export function SalonActivationScreen() {
       //    n'importe qui pouvait s'auto-déclarer kiosque d'un salon.
       await registerSalonKioskUid(salon.id, trimmed);
       await setSalonId(salon.id);
-      registerSalonKioskPushToken(salon.id);
+      registerSalonKioskPushToken(salon.id, { askPermission: true });
       nav.reset({ index: 0, routes: [{ name: 'SalonTabs' }] });
     } catch (e: any) {
       Alert.alert(t('salon.activation.failed'), humanizeError(e, t));

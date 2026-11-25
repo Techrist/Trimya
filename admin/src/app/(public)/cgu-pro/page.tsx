@@ -9,12 +9,14 @@ export const metadata: Metadata = {
 
 export default function CGUProPage() {
   return (
-    <LegalLayout title="CGU — Trimya Pro" updatedAt="6 juin 2026">
+    <LegalLayout title="CGU Trimya Pro" updatedAt="25 novembre 2026">
       <p>
         Les présentes Conditions Générales d&apos;Utilisation (« CGU Pro »)
         régissent l&apos;usage de l&apos;application <strong>Trimya Pro</strong>,
         service professionnel de gestion de fidélité pour salons de coiffure et
-        chaînes de salons, édité par Trimya, basé à Yaoundé, Cameroun.
+        chaînes de salons, accessible dans le navigateur sur pro.trimya.app et
+        installable sur l&apos;écran d&apos;accueil, édité par Trimya, basé à
+        Yaoundé, Cameroun.
       </p>
       <p>
         L&apos;Application Pro est strictement réservée aux établissements
@@ -45,7 +47,8 @@ export default function CGUProPage() {
       <p>
         Création exclusivement par l&apos;équipe Trimya à partir d&apos;une
         demande écrite, après vérification d&apos;identité et signature des
-        présentes CGU Pro.
+        présentes CGU Pro. La connexion se fait par adresse email, avec un
+        code à usage unique reçu par email.
       </p>
 
       <h2>3. Plans et tarifs</h2>

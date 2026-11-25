@@ -202,6 +202,11 @@ export const fr = {
 
   // ── Documents légaux (RGPD) ──────────────────────────────
   'legal.section': 'Légal',
+  'consent.terms.prefix': "J'ai lu et j'accepte les",
+  'consent.terms.and': ' et la ',
+  'consent.terms.a11y': "Accepter les conditions d'utilisation et la politique de confidentialité",
+  'consent.terms.requiredTitle': 'Acceptation requise',
+  'consent.terms.requiredText': "Pour créer ton compte, coche la case d'acceptation des conditions et de la politique de confidentialité.",
   'legal.privacy': 'Politique de confidentialité',
   'legal.privacyShort': 'Confidentialité',
   'legal.cguClient': 'Conditions d\'utilisation',

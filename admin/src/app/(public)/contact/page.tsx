@@ -20,6 +20,8 @@ export default function ContactPage() {
     salonName: "",
     city: "",
   });
+  // Consentement explicite (case non cochée par défaut).
+  const [consent, setConsent] = useState(false);
   const [state, setState] = useState<FormState>({ kind: "idle" });
 
   const update = (field: keyof typeof form, value: string) =>
@@ -27,12 +29,20 @@ export default function ContactPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!consent) {
+      setState({
+        kind: "error",
+        message:
+          "Coche la case de consentement pour que nous puissions traiter ta demande.",
+      });
+      return;
+    }
     setState({ kind: "submitting" });
     try {
       const res = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, consent }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -194,6 +204,29 @@ export default function ContactPage() {
                   />
                 </div>
 
+                <label className="flex cursor-pointer items-start gap-3 text-sm text-text-muted">
+                  <input
+                    type="checkbox"
+                    checked={consent}
+                    onChange={(e) => setConsent(e.target.checked)}
+                    required
+                    className="mt-0.5 h-5 w-5 shrink-0 cursor-pointer accent-primary"
+                  />
+                  <span>
+                    J&apos;accepte que Trimya utilise les informations saisies
+                    pour répondre à ma demande, comme décrit dans la{" "}
+                    <a
+                      href="/privacy"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline"
+                    >
+                      politique de confidentialité
+                    </a>
+                    .
+                  </span>
+                </label>
+
                 {state.kind === "error" ? (
                   <div className="rounded-lg border border-danger/40 bg-danger/10 p-3 text-sm text-danger">
                     {state.message}
@@ -216,9 +249,13 @@ export default function ContactPage() {
                 </button>
 
                 <p className="text-xs text-text-dim">
-                  En soumettant ce formulaire, tu acceptes notre{" "}
-                  <a href="/privacy" className="text-primary hover:underline">
-                    politique de confidentialité
+                  Tu peux retirer ton consentement et demander la suppression
+                  de ta demande à tout moment en écrivant à{" "}
+                  <a
+                    href="mailto:contact@trimya.app"
+                    className="text-primary hover:underline"
+                  >
+                    contact@trimya.app
                   </a>
                   .
                 </p>

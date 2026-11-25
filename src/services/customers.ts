@@ -38,6 +38,9 @@ export async function createCustomer(input: {
   /** Email (optionnel à l'inscription, utile pour reçus / récupération) */
   email?: string;
   salonId: string;
+  /** Preuve du consentement aux CGU et à la politique de confidentialité. */
+  termsAcceptedAt?: number;
+  termsVersion?: string;
 }): Promise<Customer> {
   // On ne pose que les champs avec valeur non-vide pour ne pas écraser
   // avec des `undefined` côté Firestore.
@@ -54,6 +57,12 @@ export async function createCustomer(input: {
     ...(input.name ? { name: input.name } : {}),
     ...(input.lastName ? { lastName: input.lastName } : {}),
     ...(input.email ? { email: input.email } : {}),
+    ...(input.termsAcceptedAt
+      ? {
+          termsAcceptedAt: input.termsAcceptedAt,
+          ...(input.termsVersion ? { termsVersion: input.termsVersion } : {}),
+        }
+      : {}),
   };
   await setDoc(doc(db, 'customers', input.id), customer);
   return customer;

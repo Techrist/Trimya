@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Check, X } from "lucide-react";
 import { Hero, CTABand } from "@/components/public/primitives";
+import { PLANS, type Plan } from "@/lib/site-plans";
+import { JsonLd, breadcrumbList } from "@/lib/jsonld";
 
 export const metadata: Metadata = {
   title: "Tarifs du logiciel pour salon de coiffure",
@@ -9,99 +11,11 @@ export const metadata: Metadata = {
     "Tarifs de Trimya, l'application de gestion et de fidélité pour salon de coiffure : 5 plans du gratuit au plan chaîne. Salon individuel dès 0 FCFA/mois, chaînes dès 25 000 FCFA/mois.",
 };
 
-interface Plan {
-  id: string;
-  name: string;
-  audience: string;
-  price: number;
-  description: string;
-  features: string[];
-  highlight?: boolean;
-}
-
-const PLANS: Plan[] = [
-  {
-    id: "free",
-    name: "Découverte",
-    audience: "Salon individuel",
-    price: 0,
-    description: "Pour démarrer et tester Trimya",
-    features: [
-      "Carte de fidélité 4/4 avec QR",
-      "Jusqu'à 50 clients",
-      "1 coiffeur",
-      "Profil salon basique",
-    ],
-  },
-  {
-    id: "standard",
-    name: "Standard",
-    audience: "Salon individuel",
-    price: 10000,
-    description: "Pour faire grandir ton fichier client",
-    features: [
-      "Clients illimités",
-      "Jusqu'à 2 coiffeurs",
-      "Messagerie client ↔ salon",
-      "Horaires d'ouverture configurables",
-      "File d'attente « Je suis en route »",
-      "Notes privées + clients VIP",
-      "Support par email",
-    ],
-  },
-  {
-    id: "pro",
-    name: "Pro",
-    audience: "Salon individuel",
-    price: 15000,
-    description: "Toute la puissance Trimya pour un salon ambitieux",
-    highlight: true,
-    features: [
-      "Tout Standard, plus :",
-      "Réservations en ligne",
-      "Abonnement coupes illimitées",
-      "Coupe à domicile (avec contre-proposition)",
-      "Coiffeurs illimités + stats par coiffeur",
-      "Stats avancées (revenus, périodes)",
-      "Templates de messages",
-      "Support prioritaire WhatsApp",
-    ],
-  },
-  {
-    id: "enterprise_standard",
-    name: "Entreprise Standard",
-    audience: "Chaîne (jusqu'à 5 salons)",
-    price: 25000,
-    description: "Plusieurs salons, features essentielles",
-    features: [
-      "Jusqu'à 5 salons sous un même compte",
-      "Tous les salons inclus passent en Standard",
-      "Tableau de bord consolidé multi-salons",
-      "Fidélité partagée entre salons",
-      "Transferts de coiffeurs entre salons",
-      "Facturation et support unifiés",
-    ],
-  },
-  {
-    id: "enterprise",
-    name: "Entreprise Pro",
-    audience: "Chaîne (jusqu'à 5 salons)",
-    price: 40000,
-    description: "Plusieurs salons, toute la puissance Pro",
-    features: [
-      "Jusqu'à 5 salons sous un même compte",
-      "Tous les salons inclus passent en Pro",
-      "Réservations + abonnements + stats avancées",
-      "Coupe à domicile sur tous les salons",
-      "Transferts de coiffeurs + fidélité partagée",
-      "Facturation et support prioritaires",
-    ],
-  },
-];
-
 export default function TarifsPage() {
   return (
     <>
+      <JsonLd data={breadcrumbList([{ name: "Tarifs", path: "/tarifs" }])} />
+
       <Hero
         eyebrow="Tarifs"
         title="Choisis le plan adapté à ton salon"

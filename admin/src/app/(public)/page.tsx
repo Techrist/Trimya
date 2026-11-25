@@ -21,70 +21,14 @@ import {
   CTABand,
   CheckList,
 } from "@/components/public/primitives";
-
-/**
- * Données structurées (schema.org) : elles disent à Google, sans ambiguïté,
- * qui est Trimya, quel est le site, et quelles sont les deux applications.
- * N'y figure que ce qui est vrai aujourd'hui : l'app client est gratuite,
- * les deux applications fonctionnent sur le web.
- */
-const SITE_URL = "https://www.trimya.app";
-const structuredData = {
-  "@context": "https://schema.org",
-  "@graph": [
-    {
-      "@type": "Organization",
-      "@id": `${SITE_URL}/#organization`,
-      name: "Trimya",
-      url: SITE_URL,
-      logo: `${SITE_URL}/logo-mark.png`,
-      email: "contact@trimya.app",
-      description:
-        "Trimya édite une application de carte de fidélité et un logiciel de gestion pour les salons de coiffure et barbiers en Afrique.",
-    },
-    {
-      "@type": "WebSite",
-      "@id": `${SITE_URL}/#website`,
-      url: SITE_URL,
-      name: "Trimya",
-      inLanguage: "fr",
-      publisher: { "@id": `${SITE_URL}/#organization` },
-    },
-    {
-      "@type": "SoftwareApplication",
-      name: "Trimya",
-      url: "https://app.trimya.app",
-      applicationCategory: "LifestyleApplication",
-      operatingSystem: "Web",
-      description:
-        "Carte de fidélité digitale pour les clients de salons de coiffure : QR code, coupe offerte, réservations, file d'attente.",
-      offers: { "@type": "Offer", price: "0", priceCurrency: "XAF" },
-      publisher: { "@id": `${SITE_URL}/#organization` },
-    },
-    {
-      "@type": "SoftwareApplication",
-      name: "Trimya Pro",
-      url: "https://pro.trimya.app",
-      applicationCategory: "BusinessApplication",
-      operatingSystem: "Web",
-      description:
-        "Logiciel de gestion de salon de coiffure : scan QR, fiches clients, équipe, réservations, statistiques.",
-      publisher: { "@id": `${SITE_URL}/#organization` },
-    },
-  ],
-};
+import { JsonLd, siteGraph } from "@/lib/jsonld";
 
 export default function HomePage() {
   return (
     <>
-      {/* Données structurées JSON-LD (le `<` est échappé pour éviter toute
-          injection de balise dans le script). */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(structuredData).replace(/</g, "\\u003c"),
-        }}
-      />
+      {/* Données structurées schema.org : organisation, site et les deux
+          applications (voir lib/jsonld.tsx). */}
+      <JsonLd data={siteGraph()} />
 
       {/* HERO */}
       <Hero
@@ -110,21 +54,34 @@ export default function HomePage() {
           <div className="grid items-center gap-8 md:grid-cols-2">
             <div>
               <p className="text-sm font-bold uppercase tracking-wider text-primary">
-                Téléchargement gratuit
+                Disponible maintenant, rien à télécharger
               </p>
               <h2 className="mt-2 text-2xl font-bold text-text sm:text-3xl">
-                Deux apps, un seul écosystème
+                Deux applications, un seul écosystème
               </h2>
               <p className="mt-3 text-base text-text-muted">
                 <strong className="text-text">Trimya</strong> pour les clients,{" "}
                 <strong className="text-text">Trimya Pro</strong> pour les
-                salons et les chaînes. Le compteur de fidélité circule entre
-                les deux en temps réel.
+                salons de coiffure et les chaînes. Elles s&apos;ouvrent
+                directement dans le navigateur et s&apos;installent sur
+                l&apos;écran d&apos;accueil. Le compteur de fidélité circule
+                entre les deux en temps réel.
+              </p>
+              <p className="mt-2 text-sm text-text-dim">
+                Versions App Store et Google Play bientôt disponibles.
               </p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row md:flex-col md:gap-2">
-              <StoreButton store="ios" />
-              <StoreButton store="android" />
+              <AppButton
+                label="Trimya"
+                sub="Pour les clients, gratuit"
+                href="https://app.trimya.app"
+              />
+              <AppButton
+                label="Trimya Pro"
+                sub="Pour les salons et les chaînes"
+                href="https://pro.trimya.app"
+              />
             </div>
           </div>
         </div>
@@ -232,7 +189,7 @@ export default function HomePage() {
             icon={Globe}
             tone="primary"
             title="Local par construction"
-            description="Tarifs en FCFA, paiement par Mobile Money ou virement, support WhatsApp, interface adaptée aux usages camerounais."
+            description="Basé à Yaoundé. Tarifs en FCFA, paiement par Mobile Money ou virement, support WhatsApp, applications qui s'ouvrent dans le navigateur sans rien télécharger."
           />
           <FeatureCard
             icon={Shield}
@@ -268,23 +225,25 @@ export default function HomePage() {
 
 // ─── Composants locaux à la homepage ──────────────────────────
 
-function StoreButton({ store }: { store: "ios" | "android" }) {
-  // Pour l'instant on mocke les liens vers les stores — à remplacer par les
-  // vraies URLs App Store Connect / Play Console une fois les apps publiées.
-  const href = store === "ios" ? "#app-store-coming-soon" : "#play-store-coming-soon";
-  const label = store === "ios" ? "App Store" : "Google Play";
-  const sub = store === "ios" ? "Bientôt disponible" : "Bientôt disponible";
+function AppButton({
+  label,
+  sub,
+  href,
+}: {
+  label: string;
+  sub: string;
+  href: string;
+}) {
   return (
     <a
       href={href}
-      className="flex items-center gap-3 rounded-lg border border-border bg-bg px-4 py-3 transition-colors hover:border-text-dim"
+      className="flex items-center gap-3 rounded-lg border border-border bg-bg px-4 py-3 transition-colors hover:border-primary"
     >
-      <Smartphone className="h-6 w-6 text-text-muted" strokeWidth={2} />
+      <Smartphone className="h-6 w-6 text-primary" strokeWidth={2} />
       <div className="flex-1 text-left">
-        <p className="text-xs text-text-dim">Télécharger sur</p>
-        <p className="text-sm font-bold text-text">{label}</p>
+        <p className="text-xs text-text-dim">{sub}</p>
+        <p className="text-sm font-bold text-text">Ouvrir {label}</p>
       </div>
-      <p className="text-xs text-text-dim">{sub}</p>
     </a>
   );
 }

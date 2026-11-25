@@ -14,6 +14,7 @@ import {
   CTABand,
   CheckList,
 } from "@/components/public/primitives";
+import { JsonLd, breadcrumbList } from "@/lib/jsonld";
 
 export const metadata: Metadata = {
   title: "Gestion multi-salons pour chaînes de salons de coiffure",
@@ -24,6 +25,8 @@ export const metadata: Metadata = {
 export default function ProprietairesPage() {
   return (
     <>
+      <JsonLd data={breadcrumbList([{ name: "Pour les chaînes", path: "/proprietaires" }])} />
+
       <Hero
         spotlight
         eyebrow="Pour les chaînes de salons de coiffure"
@@ -43,7 +46,7 @@ export default function ProprietairesPage() {
 
       <Section
         eyebrow="Pouvoirs uniques"
-        title="Des features que personne d'autre n'a"
+        title="Des fonctionnalités pensées pour les chaînes de salons"
         description="Conçues spécifiquement pour les propriétaires de chaînes de salons."
       >
         <div className="grid gap-6 md:grid-cols-2">

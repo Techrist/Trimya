@@ -5,12 +5,12 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Screen } from '@/components/Screen';
 import { Button } from '@/components/Button';
 import { TextField } from '@/components/TextField';
-import { LegalLinks } from '@/components/LegalLinks';
+import { ConsentCheckbox } from '@/components/ConsentCheckbox';
+import { LEGAL_VERSION } from '@/lib/legal';
 import { humanizeError } from '@/lib/humanizeError';
 import { createCustomer } from '@/services/customers';
 import { currentUser } from '@/services/auth';
 import { storage } from '@/services/storage';
-import { ensureNotificationPermission } from '@/services/notifications';
 import { useT } from '@/i18n';
 import { colors, spacing, typography } from '@/theme';
 import { RootStackParamList } from '@/navigation/types';
@@ -38,6 +38,9 @@ export function ClientNameScreen() {
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
+  // Consentement explicite aux CGU et à la politique de confidentialité :
+  // jamais coché d'avance, requis pour créer le compte.
+  const [accepted, setAccepted] = useState(false);
 
   // Pré-remplit le champ email avec celui de la session Firebase. Depuis le
   // flow OTP (signInWithCustomToken + createUser({ email })), auth.currentUser
@@ -58,6 +61,10 @@ export function ClientNameScreen() {
     const trimmedLast = lastName.trim();
     const trimmedEmail = email.trim();
 
+    if (!accepted) {
+      Alert.alert(t('consent.terms.requiredTitle'), t('consent.terms.requiredText'));
+      return;
+    }
     if (trimmedFirst.length < 2) {
       Alert.alert(t('auth.name.tooShort'), t('auth.name.tooShortHint'));
       return;
@@ -78,9 +85,13 @@ export function ClientNameScreen() {
         lastName: trimmedLast || undefined,
         email: trimmedEmail || undefined,
         salonId: DEFAULT_SALON_ID,
+        termsAcceptedAt: Date.now(),
+        termsVersion: LEGAL_VERSION,
       });
       await storage.setCustomerId(user.uid);
-      await ensureNotificationPermission();
+      // Les notifications ne sont PAS demandées ici : l'autorisation du
+      // navigateur est proposée plus tard, au moment où l'utilisateur choisit
+      // de les activer (carte du tableau de bord ou profil).
       nav.reset({ index: 0, routes: [{ name: 'ClientTabs' }] });
     } catch (e: any) {
       Alert.alert(t('common.error'), humanizeError(e, t));
@@ -138,18 +149,18 @@ export function ClientNameScreen() {
           {t('auth.signup.emailHint')}
         </Text>
 
+        <ConsentCheckbox checked={accepted} onChange={setAccepted} />
+
         <View style={styles.submitWrap}>
           <Button
             label={t('auth.signup.createAccount')}
             onPress={handleContinue}
             loading={loading}
-            disabled={firstName.trim().length < 2}
+            disabled={firstName.trim().length < 2 || !accepted}
           />
         </View>
 
         <Text style={styles.legal}>{t('auth.signup.editableLater')}</Text>
-
-        <LegalLinks variant="inline" />
       </ScrollView>
     </Screen>
   );

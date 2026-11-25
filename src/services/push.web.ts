@@ -36,6 +36,22 @@ export type WebPushPermission =
   | 'granted'
   | 'denied';
 
+export interface PushRegisterOptions {
+  /**
+   * true UNIQUEMENT quand l'appel découle d'un geste explicite de
+   * l'utilisateur (bouton « Activer »). Par défaut (false), on ne
+   * déclenche jamais la fenêtre d'autorisation du navigateur : on
+   * rafraîchit le token seulement si la permission est déjà accordée.
+   */
+  askPermission?: boolean;
+}
+
+async function resolvePermission(ask?: boolean): Promise<NotificationPermission> {
+  const current = Notification.permission;
+  if (current !== 'default' || !ask) return current;
+  return Notification.requestPermission();
+}
+
 /**
  * Vérifie l'état courant sans demander la permission.
  * À appeler au mount de l'écran qui propose d'activer les notifs.
@@ -68,6 +84,7 @@ export async function getWebPushPermission(): Promise<WebPushPermission> {
  */
 export async function registerWebPushForCustomer(
   customerId: string,
+  options: PushRegisterOptions = {},
 ): Promise<string | null> {
   if (!(await isSupported().catch(() => false))) return null;
 
@@ -80,7 +97,7 @@ export async function registerWebPushForCustomer(
     await navigator.serviceWorker.ready;
 
     const messaging = getMessaging(app);
-    const permission = await Notification.requestPermission();
+    const permission = await resolvePermission(options.askPermission);
     if (permission !== 'granted') return null;
 
     const token = await getToken(messaging, {
@@ -106,6 +123,7 @@ export async function registerWebPushForCustomer(
  */
 export async function registerWebPushForSalonKiosk(
   salonId: string,
+  options: PushRegisterOptions = {},
 ): Promise<string | null> {
   if (!(await isSupported().catch(() => false))) return null;
 
@@ -116,7 +134,7 @@ export async function registerWebPushForSalonKiosk(
     await navigator.serviceWorker.ready;
 
     const messaging = getMessaging(app);
-    const permission = await Notification.requestPermission();
+    const permission = await resolvePermission(options.askPermission);
     if (permission !== 'granted') return null;
 
     const token = await getToken(messaging, {

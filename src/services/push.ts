@@ -27,6 +27,7 @@ function canUseRemotePush(): boolean {
  */
 export async function registerPushTokenForCustomer(
   customerId: string,
+  options: { askPermission?: boolean } = {},
 ): Promise<string | null> {
   if (!canUseRemotePush()) {
     // Expo Go on Android — skip without touching expo-notifications native APIs.
@@ -36,7 +37,7 @@ export async function registerPushTokenForCustomer(
   try {
     const settings = await Notifications.getPermissionsAsync();
     let granted = settings.granted;
-    if (!granted) {
+    if (!granted && options.askPermission) {
       const req = await Notifications.requestPermissionsAsync();
       granted = req.granted;
     }
@@ -77,13 +78,14 @@ export async function registerPushTokenForCustomer(
  */
 export async function registerSalonKioskPushToken(
   salonId: string,
+  options: { askPermission?: boolean } = {},
 ): Promise<string | null> {
   if (!canUseRemotePush()) return null;
 
   try {
     const settings = await Notifications.getPermissionsAsync();
     let granted = settings.granted;
-    if (!granted) {
+    if (!granted && options.askPermission) {
       const req = await Notifications.requestPermissionsAsync();
       granted = req.granted;
     }

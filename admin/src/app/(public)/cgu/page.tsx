@@ -8,16 +8,17 @@ export const metadata: Metadata = {
 
 export default function CGUPage() {
   return (
-    <LegalLayout title="CGU — Trimya (Client)" updatedAt="6 juin 2026">
+    <LegalLayout title="CGU Trimya (Client)" updatedAt="25 novembre 2026">
       <p>
         Les présentes Conditions Générales d&apos;Utilisation (« CGU »)
-        régissent l&apos;usage de l&apos;application mobile{" "}
-        <strong>Trimya</strong>, service grand public de carte de fidélité
-        numérique pour salons de coiffure, éditée par Trimya, basé à Yaoundé,
-        Cameroun.
+        régissent l&apos;usage de l&apos;application <strong>Trimya</strong>,
+        service grand public de carte de fidélité numérique pour salons de
+        coiffure, accessible dans le navigateur sur app.trimya.app et
+        installable sur l&apos;écran d&apos;accueil, éditée par Trimya, basé à
+        Yaoundé, Cameroun.
       </p>
       <p>
-        En téléchargeant, installant ou utilisant l&apos;Application, vous (le
+        En ouvrant, installant ou utilisant l&apos;Application, vous (le
         « Client ») acceptez ces CGU sans réserve.
       </p>
 
@@ -28,19 +29,27 @@ export default function CGUPage() {
         <li>Présenter une carte de fidélité numérique sous forme de QR code</li>
         <li>Noter votre coiffeur après chaque coupe</li>
         <li>Prendre rendez-vous en ligne</li>
+        <li>Signaler votre arrivée au salon avec la file d&apos;attente « Je suis en route »</li>
         <li>Communiquer avec le salon via la messagerie intégrée</li>
         <li>Commander un coiffeur à domicile</li>
       </ul>
 
       <h2>2. Création de compte</h2>
       <p>
-        L&apos;inscription se fait via numéro de téléphone vérifié par SMS.
-        <strong> Un numéro = un compte.</strong> Vous garantissez :
+        L&apos;inscription se fait avec une adresse email, vérifiée par un code
+        à 6 chiffres à usage unique reçu par email.
+        La création du compte suppose que vous cochiez la case d&apos;acceptation
+        des présentes conditions et de la politique de confidentialité ; la date
+        et la version acceptées sont enregistrées.
+        <strong> Une adresse email = un compte.</strong> Vous garantissez :
       </p>
       <ul>
-        <li>L&apos;exactitude de votre prénom et de votre numéro</li>
+        <li>L&apos;exactitude de votre prénom et de votre adresse email</li>
         <li>N&apos;utiliser qu&apos;un seul compte personnel</li>
-        <li>Ne pas créer de compte avec un numéro qui ne vous appartient pas</li>
+        <li>
+          Ne pas créer de compte avec une adresse email qui ne vous appartient
+          pas
+        </li>
       </ul>
 
       <h2>3. Gratuité</h2>
@@ -102,7 +111,7 @@ export default function CGUPage() {
       <h2>8. Utilisation acceptable</h2>
       <p>Sont notamment interdits :</p>
       <ul>
-        <li>Créer plusieurs comptes avec des numéros fictifs</li>
+        <li>Créer plusieurs comptes avec des adresses email fictives</li>
         <li>Tenter de falsifier le compteur de coupes</li>
         <li>Décompiler ou contourner la sécurité de l&apos;application</li>
         <li>Utiliser l&apos;application à des fins commerciales non autorisées</li>
@@ -117,7 +126,10 @@ export default function CGUPage() {
       <h2>10. Responsabilité</h2>
       <p>Trimya ne saurait être tenu responsable :</p>
       <ul>
-        <li>Des interruptions techniques ou pannes externes (Firebase, Expo)</li>
+        <li>
+          Des interruptions techniques ou pannes externes de nos prestataires
+          (notamment Google Firebase, Vercel, Brevo et Cloudflare)
+        </li>
         <li>De la qualité des prestations fournies par les salons partenaires</li>
         <li>Des litiges entre vous et un salon concernant les services rendus</li>
       </ul>

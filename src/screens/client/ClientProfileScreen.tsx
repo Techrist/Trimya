@@ -234,7 +234,7 @@ export function ClientProfileScreen() {
             return;
           }
         }
-        await registerPushTokenForCustomer(customer.id);
+        await registerPushTokenForCustomer(customer.id, { askPermission: true });
       }
       await setCustomerPushEnabled(customer.id, enabled);
     } catch (e: any) {

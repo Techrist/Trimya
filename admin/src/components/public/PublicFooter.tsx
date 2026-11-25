@@ -36,6 +36,7 @@ export function PublicFooter() {
               { href: "/salons", label: "Pour les salons" },
               { href: "/proprietaires", label: "Pour les chaînes" },
               { href: "/tarifs", label: "Tarifs" },
+              { href: "/faq", label: "Questions fréquentes" },
             ]}
           />
 

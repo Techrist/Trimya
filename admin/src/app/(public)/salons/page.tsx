@@ -17,6 +17,7 @@ import {
   CTABand,
   CheckList,
 } from "@/components/public/primitives";
+import { JsonLd, breadcrumbList } from "@/lib/jsonld";
 
 export const metadata: Metadata = {
   title: "Logiciel de gestion pour salon de coiffure et barbier",
@@ -27,6 +28,8 @@ export const metadata: Metadata = {
 export default function SalonsPage() {
   return (
     <>
+      <JsonLd data={breadcrumbList([{ name: "Pour les salons", path: "/salons" }])} />
+
       <Hero
         spotlight
         eyebrow="Pour les salons de coiffure et barbiers"
@@ -144,7 +147,7 @@ export default function SalonsPage() {
           <Step
             number="2"
             title="Active la tablette"
-            description="Sur n'importe quelle tablette ou téléphone Android/iPhone : télécharge Trimya Pro, entre ton code, c'est fini."
+            description="Sur n'importe quelle tablette ou téléphone : ouvre pro.trimya.app dans le navigateur, installe Trimya Pro sur l'écran d'accueil, entre ton code, c'est fini. Rien à télécharger."
           />
           <Step
             number="3"

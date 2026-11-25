@@ -148,6 +148,11 @@ export const en: typeof fr = {
 
   // ── Legal documents (GDPR) ────────────────────────────────
   'legal.section': 'Legal',
+  'consent.terms.prefix': 'I have read and accept the',
+  'consent.terms.and': ' and the ',
+  'consent.terms.a11y': 'Accept the terms of service and the privacy policy',
+  'consent.terms.requiredTitle': 'Acceptance required',
+  'consent.terms.requiredText': 'To create your account, tick the box accepting the terms and the privacy policy.',
   'legal.privacy': 'Privacy Policy',
   'legal.privacyShort': 'Privacy',
   'legal.cguClient': 'Terms of Service',

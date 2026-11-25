@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { adminDb } from "@/lib/firebase-admin";
 import { classifyError, logServerError } from "@/lib/api-errors";
+import { LEGAL_VERSION } from "@/lib/legal";
 
 /**
  * POST /api/contact — Réception d'un formulaire de contact depuis le site
@@ -21,6 +22,10 @@ const BodySchema = z.object({
   message: z.string().min(10).max(2000),
   salonName: z.string().max(100).optional(),
   city: z.string().max(80).optional(),
+  // Consentement explicite au traitement des données saisies. Refusé
+  // côté serveur si la case n'est pas cochée (la validation du navigateur
+  // seule ne suffit pas : l'API peut être appelée directement).
+  consent: z.literal(true),
 });
 
 export async function POST(req: NextRequest) {
@@ -72,6 +77,9 @@ export async function POST(req: NextRequest) {
     await ref.set({
       id: ref.id,
       ...data,
+      // Preuve du consentement : quand, et sur quelle version des documents.
+      consentAt: now,
+      consentVersion: LEGAL_VERSION,
       ipHash,
       status: "new",
       createdAt: now,

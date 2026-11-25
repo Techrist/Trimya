@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable, Linking, Alert } from 'react-native';
 import { isProApp } from '@/lib/appTarget';
 import { useT } from '@/i18n';
+import { LEGAL_URLS as URLS } from '@/lib/legal';
 import { colors, spacing, typography } from '@/theme';
 
 /**
@@ -23,12 +24,6 @@ interface Props {
   variant?: 'inline' | 'list' | 'footer';
 }
 
-const URLS = {
-  privacy: 'https://www.trimya.app/privacy',
-  cguClient: 'https://www.trimya.app/cgu',
-  cguPro: 'https://www.trimya.app/cgu-pro',
-};
-
 async function open(url: string, t: (key: any) => string) {
   try {
     const can = await Linking.canOpenURL(url);
@@ -41,6 +36,9 @@ async function open(url: string, t: (key: any) => string) {
     );
   }
 }
+
+/** Ouvre un document légal (réutilisé par la case de consentement). */
+export const openLegalUrl = open;
 
 export function LegalLinks({ variant = 'inline' }: Props) {
   const { t } = useT();

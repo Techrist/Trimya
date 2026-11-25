@@ -15,6 +15,7 @@ import {
   FeatureCard,
   CTABand,
 } from "@/components/public/primitives";
+import { JsonLd, breadcrumbList } from "@/lib/jsonld";
 
 export const metadata: Metadata = {
   title: "Carte de fidélité coiffeur gratuite sur ton téléphone",
@@ -25,6 +26,8 @@ export const metadata: Metadata = {
 export default function ClientsPage() {
   return (
     <>
+      <JsonLd data={breadcrumbList([{ name: "Pour les clients", path: "/clients" }])} />
+
       <Hero
         spotlight
         eyebrow="Pour les clients"
@@ -38,8 +41,8 @@ export default function ClientsPage() {
           </>
         }
         description="Plus de carte de fidélité papier qui se perd. Ton coiffeur ou ton barbier scanne ton QR code, le compteur monte, et au bout de quelques coupes, la suivante est offerte. Réserve ton créneau en ligne, rejoins la file d'attente ou commande une coupe à domicile. Gratuit pour toujours."
-        primaryCta={{ label: "Télécharger Trimya", href: "#download" }}
-        secondaryCta={{ label: "Découvrir les features", href: "#features" }}
+        primaryCta={{ label: "Ouvrir Trimya", href: "https://app.trimya.app" }}
+        secondaryCta={{ label: "Découvrir les fonctionnalités", href: "#features" }}
       />
 
       {/* FEATURES PRINCIPALES */}
@@ -133,10 +136,10 @@ export default function ClientsPage() {
       >
         <div className="mx-auto max-w-3xl text-center">
           <p className="text-base text-text-muted">
-            On collecte ton numéro de téléphone et ton prénom — c&apos;est tout
-            ce qu&apos;il nous faut pour t&apos;identifier auprès du salon.
-            Aucune publicité, aucune revente, aucun tracking. Tes données sont
-            chiffrées et hébergées en Europe.
+            On collecte ton adresse email et ton prénom : c&apos;est tout ce
+            qu&apos;il nous faut pour t&apos;identifier auprès du salon.
+            Aucune publicité, aucune revente, aucun tracking. Tes échanges
+            sont chiffrés et tes données hébergées en Europe.
           </p>
           <p className="mt-4 text-sm text-text-dim">
             <a href="/privacy" className="text-primary hover:underline">
@@ -149,7 +152,7 @@ export default function ClientsPage() {
       <CTABand
         title="Demande à ton coiffeur si Trimya est là."
         description="Sinon, parle-lui-en — il pourra activer son salon en 24h."
-        primaryCta={{ label: "Télécharger l'app", href: "#download" }}
+        primaryCta={{ label: "Ouvrir Trimya", href: "https://app.trimya.app" }}
       />
     </>
   );
