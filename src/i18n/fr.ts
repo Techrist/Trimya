@@ -137,13 +137,21 @@ export const fr = {
 
   // ── Email magic link (Client + Pro) ───────────────
   'auth.email.title': 'Ton email',
-  'auth.email.subtitle': 'On t\'envoie un lien magique pour te connecter en un clic — sans mot de passe.',
+  'auth.email.subtitle': 'On t\'envoie un code à 6 chiffres par email pour te connecter, sans mot de passe.',
   'auth.email.label': 'Adresse email',
   'auth.email.placeholder': 'nom@exemple.com',
-  'auth.email.send': 'Recevoir le lien',
+  'auth.email.send': 'Recevoir le code',
   'auth.email.invalid': 'Email invalide',
   'auth.email.invalidHint': 'Vérifie l\'orthographe de ton adresse.',
-  'auth.email.errorSend': 'Impossible d\'envoyer le lien.',
+  'auth.email.errorSend': 'Impossible d\'envoyer le code.',
+
+  'auth.otpCode.title': 'Entre ton code',
+  'auth.otpCode.subtitle': 'On vient d\'envoyer un code à 6 chiffres à',
+  'auth.otpCode.label': 'Code à 6 chiffres',
+  'auth.otpCode.verify': 'Vérifier',
+  'auth.otpCode.resend': 'Renvoyer le code',
+  'auth.otpCode.resendIn': 'Renvoyer le code ({{seconds}}s)',
+  'auth.otpCode.ownerNotActive': 'Ton email est reconnu, mais ton compte propriétaire n\'est pas encore activé. Contacte Trimya.',
 
   'auth.emailSent.title': 'Vérifie ta boîte email',
   'auth.emailSent.subtitle': 'On vient d\'envoyer un lien magique à {{email}}. Clique dessus pour te connecter.',
@@ -151,7 +159,7 @@ export const fr = {
   'auth.emailSent.hint2': 'Pense à vérifier le dossier spam.',
   'auth.emailSent.hint3': 'Clique depuis cet appareil pour une connexion automatique.',
   'auth.emailSent.resend': 'Renvoyer le lien',
-  'auth.emailSent.resent': 'Lien renvoyé — vérifie ta boîte.',
+  'auth.emailSent.resent': 'Lien renvoyé, vérifie ta boîte.',
   'auth.emailSent.changeEmail': 'Utiliser une autre adresse',
   'auth.emailSent.needEmail': 'Entre à nouveau ton email pour terminer la connexion.',
 
@@ -900,6 +908,8 @@ export const fr = {
   'owner.signin.tooManyAttempts': 'Trop de tentatives. Réessaie dans quelques minutes.',
   'owner.signin.legal': 'Le mode propriétaire est réservé aux comptes Entreprise créés par Trimya.',
   'owner.signin.methodMagicLink': 'Lien magique',
+  'owner.signin.methodOtp': 'Code par email',
+  'owner.signin.sendCode': 'Recevoir mon code',
   'owner.signin.methodPassword': 'Mot de passe',
 
   'owner.tab.home': 'Accueil',

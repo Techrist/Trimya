@@ -83,13 +83,21 @@ export const en: typeof fr = {
 
   // ── Email magic link (Client + Pro) ───────────────
   'auth.email.title': 'Your email',
-  'auth.email.subtitle': 'We\'ll send you a magic link to sign in with one click — no password needed.',
+  'auth.email.subtitle': 'We\'ll email you a 6-digit code to sign in, no password needed.',
   'auth.email.label': 'Email address',
   'auth.email.placeholder': 'name@example.com',
-  'auth.email.send': 'Send me the link',
+  'auth.email.send': 'Get the code',
   'auth.email.invalid': 'Invalid email',
   'auth.email.invalidHint': 'Check the spelling of your address.',
-  'auth.email.errorSend': 'Could not send the link.',
+  'auth.email.errorSend': 'Could not send the code.',
+
+  'auth.otpCode.title': 'Enter your code',
+  'auth.otpCode.subtitle': 'We just sent a 6-digit code to',
+  'auth.otpCode.label': '6-digit code',
+  'auth.otpCode.verify': 'Verify',
+  'auth.otpCode.resend': 'Resend code',
+  'auth.otpCode.resendIn': 'Resend code ({{seconds}}s)',
+  'auth.otpCode.ownerNotActive': 'Your email is recognized, but your owner account is not activated yet. Contact Trimya.',
 
   'auth.emailSent.title': 'Check your inbox',
   'auth.emailSent.subtitle': 'We just sent a magic link to {{email}}. Click it to sign in.',
@@ -97,7 +105,7 @@ export const en: typeof fr = {
   'auth.emailSent.hint2': 'Check your spam folder if needed.',
   'auth.emailSent.hint3': 'Click from this device for an automatic sign-in.',
   'auth.emailSent.resend': 'Resend the link',
-  'auth.emailSent.resent': 'Link resent — check your inbox.',
+  'auth.emailSent.resent': 'Link resent, check your inbox.',
   'auth.emailSent.changeEmail': 'Use a different address',
   'auth.emailSent.needEmail': 'Enter your email again to finish signing in.',
 
@@ -840,6 +848,8 @@ export const en: typeof fr = {
   'owner.signin.tooManyAttempts': 'Too many attempts. Try again in a few minutes.',
   'owner.signin.legal': 'Owner mode is reserved for Enterprise accounts created by Trimya.',
   'owner.signin.methodMagicLink': 'Magic link',
+  'owner.signin.methodOtp': 'Email code',
+  'owner.signin.sendCode': 'Get my code',
   'owner.signin.methodPassword': 'Password',
 
   'owner.tab.home': 'Home',

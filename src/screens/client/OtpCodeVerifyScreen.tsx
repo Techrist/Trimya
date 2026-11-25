@@ -78,9 +78,7 @@ export function OtpCodeVerifyScreen() {
         // par l'admin — il doit contacter Trimya.
         const owner = await findOwnerForAuthUser(user);
         if (!owner) {
-          setError(
-            "Ton email est connu mais ton compte propriétaire n'est pas encore activé. Contacte Trimya.",
-          );
+          setError(t('auth.otpCode.ownerNotActive'));
           return;
         }
         await setMode('owner');
@@ -138,14 +136,15 @@ export function OtpCodeVerifyScreen() {
         <View style={styles.iconCircle}>
           <Mail color={colors.primary} size={32} strokeWidth={2.2} />
         </View>
-        <Text style={styles.title}>Code reçu par email</Text>
+        <Text style={styles.title}>{t('auth.otpCode.title')}</Text>
         <Text style={styles.subtitle}>
-          Entre le code à 6 chiffres envoyé à <Text style={styles.email}>{email}</Text>
+          {t('auth.otpCode.subtitle')}{' '}
+          <Text style={styles.email}>{email}</Text>
         </Text>
       </View>
 
       <TextField
-        label="Code à 6 chiffres"
+        label={t('auth.otpCode.label')}
         placeholder="123456"
         value={code}
         onChangeText={setCode}
@@ -163,7 +162,7 @@ export function OtpCodeVerifyScreen() {
       ) : null}
 
       <Button
-        label="Vérifier"
+        label={t('auth.otpCode.verify')}
         onPress={handleVerify}
         loading={loading}
         disabled={code.length < 6}
@@ -173,8 +172,8 @@ export function OtpCodeVerifyScreen() {
       <Button
         label={
           resendCooldown > 0
-            ? `Renvoyer le code (${resendCooldown}s)`
-            : 'Renvoyer le code'
+            ? t('auth.otpCode.resendIn', { seconds: resendCooldown })
+            : t('auth.otpCode.resend')
         }
         onPress={handleResend}
         loading={resending}

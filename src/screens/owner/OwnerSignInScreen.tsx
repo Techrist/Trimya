@@ -122,7 +122,7 @@ export function OwnerSignInScreen() {
               method === 'otp' && styles.methodLabelActive,
             ]}
           >
-            Code par email
+            {t('owner.signin.methodOtp')}
           </Text>
         </Pressable>
         <Pressable
@@ -193,7 +193,7 @@ export function OwnerSignInScreen() {
 
         {method === 'otp' ? (
           <Button
-            label="Recevoir mon code"
+            label={t('owner.signin.sendCode')}
             onPress={handleOtpSend}
             loading={loading}
             disabled={!email}
