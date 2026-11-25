@@ -22,6 +22,18 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "Trimya" }],
   metadataBase: new URL("https://www.trimya.app"),
+  // Vérification de propriété Google Search Console (balise meta
+  // `google-site-verification`, rendue dans le <head> de chaque page).
+  verification: {
+    google: "LvJk0ARI485BTT6pDCswmGACB1rfQPIx5vyGo75OfxQ",
+  },
+  // Canonique relative à metadataBase : chaque page déclare son équivalent
+  // sur https://www.trimya.app. Évite que les mêmes pages, servies aussi
+  // sur admin.trimya.app et trimya-admin.vercel.app, soient indexées en
+  // doublon.
+  alternates: {
+    canonical: "./",
+  },
   openGraph: {
     title: "Trimya — La fidélité, à la vitesse d'une coupe.",
     description:
