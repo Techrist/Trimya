@@ -170,6 +170,17 @@ export const en: typeof fr = {
   'error.auth.invalidPhone': 'This phone number format is invalid. Example: +237 6 12 34 56 78',
   'error.auth.invalidOtp': 'Wrong code. Check the 6 digits you received by SMS.',
   'error.auth.otpExpired': 'This code has expired. Request a new SMS code.',
+
+  // Email code sign-in (otpAuth.ts)
+  'error.otp.invalidEmail': 'Invalid email. Check the spelling.',
+  'error.otp.invalidCode': 'Incorrect code. Check the code you received by email.',
+  'error.otp.codeExpired': 'This code has expired. Request a new one.',
+  'error.otp.tooManyAttempts': 'Too many attempts. Request a new code.',
+  'error.otp.rateLimited': 'Too many requests. Wait a minute before trying again.',
+  'error.otp.accountDisabled': 'This account has been disabled. Contact Trimya.',
+  'error.otp.notAnOwner': 'This email is not linked to any owner account. Contact Trimya.',
+  'error.otp.network': 'Connection failed. Check your network.',
+  'error.otp.generic': 'Something went wrong. Please try again in a moment.',
   'error.auth.phoneAlreadyUsed': 'This phone number is already linked to another Trimya account.',
   'error.auth.emailAlreadyUsed': 'This email is already used by another account.',
   'error.auth.weakPassword': 'Your password is too simple. Choose one with at least 8 characters.',

@@ -45,7 +45,7 @@ export function EmailSignupScreen() {
       if (!result.ok) {
         Alert.alert(
           t('common.error'),
-          otpErrorMessage(result.error ?? 'internal_error'),
+          otpErrorMessage(result.error ?? 'internal_error', t),
         );
         return;
       }

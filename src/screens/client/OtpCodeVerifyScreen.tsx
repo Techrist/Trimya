@@ -57,7 +57,7 @@ export function OtpCodeVerifyScreen() {
   const handleVerify = async () => {
     const clean = code.replace(/\s+/g, '');
     if (!/^\d{6}$/.test(clean)) {
-      setError(otpErrorMessage('invalid_code'));
+      setError(otpErrorMessage('invalid_code', t));
       return;
     }
     setError(null);
@@ -65,7 +65,7 @@ export function OtpCodeVerifyScreen() {
     try {
       const result = await verifyOtp(email, clean);
       if (!result.ok) {
-        setError(otpErrorMessage(result.error ?? 'internal_error'));
+        setError(otpErrorMessage(result.error ?? 'internal_error', t));
         return;
       }
       const user = result.user!;
@@ -106,7 +106,7 @@ export function OtpCodeVerifyScreen() {
       }
       nav.replace('ClientName');
     } catch (e: any) {
-      setError(otpErrorMessage('internal_error'));
+      setError(otpErrorMessage('internal_error', t));
     } finally {
       setLoading(false);
     }
@@ -120,7 +120,7 @@ export function OtpCodeVerifyScreen() {
       if (!result.ok) {
         Alert.alert(
           t('common.error'),
-          otpErrorMessage(result.error ?? 'internal_error'),
+          otpErrorMessage(result.error ?? 'internal_error', t),
         );
         return;
       }

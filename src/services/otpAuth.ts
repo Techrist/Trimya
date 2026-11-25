@@ -49,6 +49,8 @@ export type OtpError =
   | 'code_expired'
   | 'too_many_attempts'
   | 'rate_limited'
+  | 'account_disabled'
+  | 'not_an_owner'
   | 'network_error'
   | 'internal_error';
 
@@ -158,6 +160,8 @@ function mapError(code: unknown): OtpError {
     case 'code_expired':
     case 'too_many_attempts':
     case 'rate_limited':
+    case 'account_disabled':
+    case 'not_an_owner':
       return code;
     case 'invalid_payload':
     case 'invalid_json':
@@ -167,28 +171,36 @@ function mapError(code: unknown): OtpError {
   }
 }
 
+/** Signature de `t` du hook useT (clé typée large pour rester découplé). */
+type TFunction = (key: any, params?: Record<string, string | number>) => string;
+
 /**
- * Message user-friendly à afficher pour une erreur OTP.
+ * Message user-friendly à afficher pour une erreur OTP, dans la langue de
+ * l'utilisateur (clés `error.otp.*` dans i18n/fr.ts et en.ts).
  * Les erreurs sont volontairement vagues sur l'existence du compte
  * (anti-énumération) : on dit toujours "code incorrect", jamais
  * "email inconnu".
  */
-export function otpErrorMessage(error: OtpError): string {
+export function otpErrorMessage(error: OtpError, t: TFunction): string {
   switch (error) {
     case 'invalid_email':
-      return 'Email invalide. Vérifie l\'orthographe.';
+      return t('error.otp.invalidEmail');
     case 'invalid_code':
-      return 'Code incorrect. Vérifie le code reçu par email.';
+      return t('error.otp.invalidCode');
     case 'code_expired':
-      return 'Ce code a expiré. Demande un nouveau code.';
+      return t('error.otp.codeExpired');
     case 'too_many_attempts':
-      return 'Trop de tentatives. Demande un nouveau code.';
+      return t('error.otp.tooManyAttempts');
     case 'rate_limited':
-      return 'Trop d\'envois. Patiente une minute avant de réessayer.';
+      return t('error.otp.rateLimited');
+    case 'account_disabled':
+      return t('error.otp.accountDisabled');
+    case 'not_an_owner':
+      return t('error.otp.notAnOwner');
     case 'network_error':
-      return 'Connexion impossible. Vérifie ton réseau.';
+      return t('error.otp.network');
     case 'internal_error':
     default:
-      return 'Quelque chose ne s\'est pas passé comme prévu. Réessaie dans un instant.';
+      return t('error.otp.generic');
   }
 }

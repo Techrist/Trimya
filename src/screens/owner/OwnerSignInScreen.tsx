@@ -73,7 +73,7 @@ export function OwnerSignInScreen() {
     try {
       const result = await requestOtp(trimmed, 'owner');
       if (!result.ok) {
-        setError(otpErrorMessage(result.error ?? 'internal_error'));
+        setError(otpErrorMessage(result.error ?? 'internal_error', t));
         return;
       }
       // Navigation vers l'écran de vérification du code — on passe

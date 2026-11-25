@@ -227,6 +227,17 @@ export const fr = {
   'error.auth.invalidPhone': 'Ce numéro de téléphone n\'a pas le bon format. Exemple : +237 6 12 34 56 78',
   'error.auth.invalidOtp': 'Code incorrect. Vérifie les 6 chiffres reçus par SMS.',
   'error.auth.otpExpired': 'Ce code a expiré. Demande un nouveau code par SMS.',
+
+  // Connexion par code email (otpAuth.ts)
+  'error.otp.invalidEmail': 'Email invalide. Vérifie l\'orthographe.',
+  'error.otp.invalidCode': 'Code incorrect. Vérifie le code reçu par email.',
+  'error.otp.codeExpired': 'Ce code a expiré. Demande un nouveau code.',
+  'error.otp.tooManyAttempts': 'Trop de tentatives. Demande un nouveau code.',
+  'error.otp.rateLimited': 'Trop d\'envois. Patiente une minute avant de réessayer.',
+  'error.otp.accountDisabled': 'Ce compte a été désactivé. Contacte Trimya.',
+  'error.otp.notAnOwner': 'Cet email n\'est associé à aucun compte propriétaire. Contacte Trimya.',
+  'error.otp.network': 'Connexion impossible. Vérifie ton réseau.',
+  'error.otp.generic': 'Quelque chose ne s\'est pas passé comme prévu. Réessaie dans un instant.',
   'error.auth.phoneAlreadyUsed': 'Ce numéro de téléphone est déjà associé à un autre compte Trimya.',
   'error.auth.emailAlreadyUsed': 'Cet email est déjà utilisé par un autre compte.',
   'error.auth.weakPassword': 'Ton mot de passe est trop simple. Choisis-en un avec au moins 8 caractères.',
