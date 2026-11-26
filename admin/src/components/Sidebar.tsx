@@ -15,6 +15,7 @@ import {
   MessageCircle,
   ArrowRightLeft,
   Crown,
+  Wallet,
   Building2,
   Menu,
   X,
@@ -40,6 +41,7 @@ const NAV: NavItem[] = [
   { href: "/dashboard/messaging", label: "Messagerie", icon: MessageCircle },
   { href: "/dashboard/migrations", label: "Migrations", icon: ArrowRightLeft },
   { href: "/dashboard/plans", label: "Plans", icon: Crown },
+  { href: "/dashboard/payments", label: "Paiements", icon: Wallet },
   { href: "/dashboard/push", label: "Notifications", icon: Send },
 ];
 

@@ -31,6 +31,7 @@ import { LegalLinks } from '@/components/LegalLinks';
 import { humanizeError } from '@/lib/humanizeError';
 import { confirmDestructive } from '@/lib/confirm';
 import { LoyaltyModeEditor } from '@/components/LoyaltyModeEditor';
+import { UpgradeModal } from '@/components/UpgradeModal';
 import { useApp } from '@/contexts/AppContext';
 import { useOwner } from '@/hooks/useOwner';
 import {
@@ -61,6 +62,7 @@ export function OwnerProfileScreen() {
   const { owner, salons } = useOwner(ownerId);
   const { t } = useT();
 
+  const [billingPlan, setBillingPlan] = useState<OwnerPlanId | null>(null);
   const [editName, setEditName] = useState(false);
   const [editPhone, setEditPhone] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
@@ -245,16 +247,46 @@ export function OwnerProfileScreen() {
           <View style={{ marginTop: spacing.md }}>
             <Button
               label={t('owner.profile.renewCta')}
-              onPress={handleContact}
+              onPress={() => setBillingPlan(owner.plan as OwnerPlanId)}
             />
           </View>
-        ) : !enterprise ? (
+        ) : null}
+
+        {!enterprise ? (
+          <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
+            <Button
+              label={t('plan.locked.cta', {
+                plan: getPlanLabel('enterprise_standard', t),
+              })}
+              variant="secondary"
+              onPress={() => setBillingPlan('enterprise_standard')}
+            />
+            <Button
+              label={t('plan.locked.cta', {
+                plan: getPlanLabel('enterprise', t),
+              })}
+              onPress={() => setBillingPlan('enterprise')}
+            />
+          </View>
+        ) : owner.plan === 'enterprise_standard' ? (
           <View style={{ marginTop: spacing.md }}>
             <Button
-              label={t('owner.profile.activateCta')}
-              onPress={handleContact}
+              label={t('plan.locked.cta', {
+                plan: getPlanLabel('enterprise', t),
+              })}
+              variant="secondary"
+              onPress={() => setBillingPlan('enterprise')}
             />
           </View>
+        ) : null}
+
+        {billingPlan ? (
+          <UpgradeModal
+            visible
+            targetType="owner"
+            targetPlan={billingPlan}
+            onClose={() => setBillingPlan(null)}
+          />
         ) : null}
       </Card>
 

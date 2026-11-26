@@ -275,6 +275,38 @@ export function getPlanBullets(id: PlanId, t: LooseT): string[] {
   return out;
 }
 
+// ─── Facturation (SasPay) ─────────────────────────────────
+//
+// MIROIR de `admin/src/lib/plans.ts`. Utilisé uniquement pour l'AFFICHAGE :
+// le serveur recalcule toujours le prix réel (cf. /api/billing/quote).
+
+export type BillingPeriod = 'monthly' | 'yearly';
+export const BILLING_PERIODS: BillingPeriod[] = ['monthly', 'yearly'];
+
+/** Mois offerts sur la formule annuelle. */
+export const YEARLY_FREE_MONTHS = 2;
+
+/** Durée de service accordée par période (jours). */
+export const PERIOD_DAYS: Record<BillingPeriod, number> = {
+  monthly: 30,
+  yearly: 365,
+};
+
+/** Prix à payer (FCFA / XAF) pour un plan et une période. */
+export function planPriceFor(planId: PlanId, period: BillingPeriod): number {
+  const monthly = PLANS[planId].monthlyPriceFcfa;
+  return period === 'yearly' ? monthly * (12 - YEARLY_FREE_MONTHS) : monthly;
+}
+
+/** Rang d'un plan dans sa famille (pour distinguer upgrade / downgrade). */
+export const PLAN_RANK: Record<PlanId, number> = {
+  free: 0,
+  standard: 1,
+  pro: 2,
+  enterprise_standard: 1,
+  enterprise: 2,
+};
+
 export const TRIAL_PRO_DAYS = 14;
 const DAY_MS = 24 * 60 * 60 * 1000;
 export const TRIAL_PRO_MS = TRIAL_PRO_DAYS * DAY_MS;

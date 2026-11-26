@@ -228,6 +228,39 @@ export function getInheritedSalonPlan(ownerPlan: OwnerPlanId): SalonPlanId {
   return ownerPlan === "enterprise" ? "pro" : "standard";
 }
 
+// ─── Facturation (SasPay) ─────────────────────────────────
+//
+// Deux périodes : mensuelle, ou annuelle avec 2 mois offerts (12 mois de
+// service pour le prix de 10). Les prix sont toujours recalculés côté serveur
+// à partir de ces constantes — jamais acceptés depuis le client.
+
+export type BillingPeriod = "monthly" | "yearly";
+export const BILLING_PERIODS: BillingPeriod[] = ["monthly", "yearly"];
+
+/** Mois offerts sur la formule annuelle. */
+export const YEARLY_FREE_MONTHS = 2;
+
+/** Durée de service accordée par période (jours). */
+export const PERIOD_DAYS: Record<BillingPeriod, number> = {
+  monthly: 30,
+  yearly: 365,
+};
+
+/** Prix à payer (FCFA / XAF) pour un plan et une période. */
+export function planPriceFor(planId: PlanId, period: BillingPeriod): number {
+  const monthly = PLANS[planId].monthlyPriceFcfa;
+  return period === "yearly" ? monthly * (12 - YEARLY_FREE_MONTHS) : monthly;
+}
+
+/** Rang d'un plan dans sa famille (pour distinguer upgrade / downgrade). */
+export const PLAN_RANK: Record<PlanId, number> = {
+  free: 0,
+  standard: 1,
+  pro: 2,
+  enterprise_standard: 1,
+  enterprise: 2,
+};
+
 export const TRIAL_PRO_DAYS = 14;
 export const DAY_MS = 24 * 60 * 60 * 1000;
 export const TRIAL_PRO_MS = TRIAL_PRO_DAYS * DAY_MS;

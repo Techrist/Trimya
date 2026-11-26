@@ -101,6 +101,16 @@ service cloud.firestore {
       }
     }
 
+    // ───────── Paiements d'abonnement (SasPay) — serveur uniquement ─────────
+    //
+    // Créés et mis à jour EXCLUSIVEMENT par les routes /api/billing/* et le
+    // webhook SasPay (Admin SDK, qui contourne les règles). Aucun client ne
+    // peut lire ni écrire : le statut est exposé via /api/billing/status.
+    match /payments/{paymentId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
     // ───────── Activation codes (serveur uniquement) ─────────
     //
     // L'ancien `allow get: if request.auth != null` permettait à un user

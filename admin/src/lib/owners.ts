@@ -1,6 +1,7 @@
 import "server-only";
 import { adminAuth, adminDb } from "./firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
+import type { SalonPlanId } from "./plans";
 
 /**
  * Crée un owner : compte Firebase Auth (email/password) + doc Firestore.
@@ -76,6 +77,24 @@ export async function removeSalonFromOwner(
     tx.update(salonRef, { ownerId: FieldValue.delete() });
     tx.update(ownerRef, { salonIds: FieldValue.arrayRemove(salonId) });
   });
+}
+
+/**
+ * Pousse (ou retire) inheritedPlan sur chacun des salons listés.
+ * Le tier (`standard` / `pro`) est dérivé du plan owner via getInheritedSalonPlan.
+ */
+export async function syncSalonsInheritedPlan(
+  salonIds: string[],
+  inheritedPlan: SalonPlanId | null,
+): Promise<void> {
+  if (salonIds.length === 0) return;
+  const batch = adminDb.batch();
+  for (const sid of salonIds) {
+    batch.update(adminDb.collection("salons").doc(sid), {
+      inheritedPlan: inheritedPlan ?? null,
+    });
+  }
+  await batch.commit();
 }
 
 function generateTempPassword(): string {

@@ -7,11 +7,11 @@ import {
   DAY_MS,
   getInheritedSalonPlan,
   type OwnerPlanId,
-  type SalonPlanId,
 } from "@/lib/plans";
 import {
   assignSalonToOwner,
   removeSalonFromOwner,
+  syncSalonsInheritedPlan,
 } from "@/lib/owners";
 
 /**
@@ -26,24 +26,6 @@ function activeOwnerPlan(
   const exp = typeof owner.planExpiresAt === "number" ? owner.planExpiresAt : 0;
   if (exp !== 0 && exp <= Date.now()) return null;
   return plan;
-}
-
-/**
- * Pousse (ou retire) inheritedPlan sur chacun des salons listés.
- * Le tier (`standard` / `pro`) est dérivé du plan owner via getInheritedSalonPlan.
- */
-async function syncSalonsInheritedPlan(
-  salonIds: string[],
-  inheritedPlan: SalonPlanId | null,
-): Promise<void> {
-  if (salonIds.length === 0) return;
-  const batch = adminDb.batch();
-  for (const sid of salonIds) {
-    batch.update(adminDb.collection("salons").doc(sid), {
-      inheritedPlan: inheritedPlan ?? null,
-    });
-  }
-  await batch.commit();
 }
 
 /**
