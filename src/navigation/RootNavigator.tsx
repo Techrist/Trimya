@@ -37,6 +37,7 @@ import { ClientTabsNavigator } from './ClientTabsNavigator';
 
 // ── Écrans Pro (chargés seulement dans Trimya Pro) ─────────────
 import { SalonActivationScreen } from '@/screens/salon/SalonActivationScreen';
+import { SalonSignupScreen } from '@/screens/salon/SalonSignupScreen';
 import { SalonTabsNavigator } from './SalonTabsNavigator';
 import { OwnerSignInScreen } from '@/screens/owner/OwnerSignInScreen';
 import { OwnerTabsNavigator } from './OwnerTabsNavigator';
@@ -248,6 +249,7 @@ export function RootNavigator() {
             name="SalonActivation"
             component={SalonActivationScreen}
           />
+          <Stack.Screen name="SalonSignup" component={SalonSignupScreen} />
           <Stack.Screen name="SalonTabs" component={SalonTabsNavigator} />
           <Stack.Screen name="OwnerSignIn" component={OwnerSignInScreen} />
           <Stack.Screen name="OwnerTabs" component={OwnerTabsNavigator} />

@@ -142,3 +142,62 @@ export async function registerSalonKioskUid(
   // serveur. Appeler l'endpoint une seconde fois échouerait avec
   // "code_already_used" (le code est one-shot, consommé au premier appel).
 }
+
+// ─── Inscription libre d'un salon (email vérifié par code) ─────────────
+
+/** Erreur applicative : `message` = code serveur (ex. `email_already_registered`). */
+async function signupCall<T>(
+  path: string,
+  body: unknown,
+  withAuth: boolean,
+): Promise<T> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (withAuth) {
+    const user = auth.currentUser;
+    if (!user) throw new Error('missing_bearer_token');
+    headers.Authorization = `Bearer ${await user.getIdToken()}`;
+  }
+  let res: Response;
+  try {
+    res = await fetch(`${ADMIN_API_URL}${path}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new Error('network_error');
+  }
+  const data = (await res.json().catch(() => ({}))) as { error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'internal_error');
+  return data as T;
+}
+
+/** Étape 1 : envoie un code à 6 chiffres à l'email. */
+export async function requestSalonSignupCode(email: string): Promise<void> {
+  await signupCall('/api/salon-signup/send', { email: email.trim() }, false);
+}
+
+export interface SalonSignupInput {
+  email: string;
+  code: string;
+  name: string;
+  city: string;
+  ownerName: string;
+  phone: string;
+}
+
+/**
+ * Étape 2 : vérifie le code, crée le salon et appaire cet appareil comme
+ * kiosque (l'appelant doit déjà avoir une session anonyme Firebase).
+ * Renvoie aussi le code de secours à conserver.
+ */
+export async function createSalonAccount(
+  input: SalonSignupInput,
+): Promise<{ salon: Salon; activationCode: string }> {
+  const r = await signupCall<{ salon: Salon; activationCode: string }>(
+    '/api/salon-signup/create',
+    { ...input, consent: true },
+    true,
+  );
+  return { salon: r.salon, activationCode: r.activationCode };
+}

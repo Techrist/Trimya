@@ -73,6 +73,12 @@ export function SalonActivationScreen() {
       <Button label={t('salon.activation.activate')} onPress={handleActivate} loading={loading} />
 
       <Button
+        label={t('salon.signup.cta')}
+        onPress={() => nav.navigate('SalonSignup')}
+        variant="secondary"
+      />
+
+      <Button
         label={t('salon.activation.notSalon')}
         onPress={async () => {
           await clearMode();

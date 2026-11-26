@@ -136,3 +136,80 @@ Trimya ne te demandera jamais ce code par téléphone ou SMS.`;
 
   return { html, text };
 }
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!,
+  );
+}
+
+function shell(inner: string): string {
+  return `<!doctype html>
+<html lang="fr">
+  <body style="margin:0;padding:0;background:#0b0b0d;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#f4f4f5;">
+    <div style="max-width:560px;margin:0 auto;padding:40px 24px;">
+      <div style="text-align:center;margin-bottom:32px;">
+        <img src="${EMAIL_LOGO_URL}" width="80" height="80" alt="Trimya" style="display:inline-block;width:80px;height:80px;border:0;outline:none;text-decoration:none;" />
+      </div>
+      ${inner}
+    </div>
+  </body>
+</html>`;
+}
+
+/** Email du code de vérification pour la création d'un salon. */
+export function renderSalonSignupEmail(params: {
+  code: string;
+  expiresInMinutes: number;
+}): { html: string; text: string } {
+  const safeCode = params.code.replace(/[^0-9]/g, "");
+  const html = shell(`
+      <h1 style="font-size:24px;font-weight:700;margin:0 0 12px;color:#f4f4f5;">Crée ton salon sur Trimya</h1>
+      <p style="font-size:15px;line-height:1.5;color:#a1a1aa;margin:0 0 32px;">
+        Entre ce code dans l'app pour confirmer ton email. Il est valable ${params.expiresInMinutes} minutes.
+      </p>
+      <div style="background:#18181b;border:1px solid #27272a;border-radius:12px;padding:24px;text-align:center;margin-bottom:32px;">
+        <div style="font-size:36px;font-weight:700;letter-spacing:8px;color:#FF5722;font-family:ui-monospace,'SF Mono',Menlo,monospace;">${safeCode}</div>
+      </div>
+      <p style="font-size:13px;line-height:1.5;color:#71717a;margin:0;">
+        Tu n'as pas demandé ce code ? Ignore cet email, rien ne sera créé.
+      </p>`);
+  const text = `Crée ton salon sur Trimya
+
+Ton code de vérification : ${safeCode}
+Il est valable ${params.expiresInMinutes} minutes.
+
+Tu n'as pas demandé ce code ? Ignore cet email, rien ne sera créé.`;
+  return { html, text };
+}
+
+/** Email de bienvenue avec le code de secours (changement d'appareil). */
+export function renderSalonWelcomeEmail(params: {
+  salonName: string;
+  activationCode: string;
+  trialDays: number;
+}): { html: string; text: string } {
+  const name = escapeHtml(params.salonName);
+  const code = escapeHtml(params.activationCode);
+  const html = shell(`
+      <h1 style="font-size:24px;font-weight:700;margin:0 0 12px;color:#f4f4f5;">Bienvenue, ${name} !</h1>
+      <p style="font-size:15px;line-height:1.5;color:#a1a1aa;margin:0 0 16px;">
+        Ton salon est créé. Tu profites de ${params.trialDays} jours d'essai du plan Pro, sans engagement.
+      </p>
+      <p style="font-size:15px;line-height:1.5;color:#a1a1aa;margin:0 0 12px;">
+        Garde précieusement ce <strong>code de secours</strong> : il te permet de retrouver ton salon sur un autre appareil (tablette changée ou perdue).
+      </p>
+      <div style="background:#18181b;border:1px solid #27272a;border-radius:12px;padding:20px;text-align:center;margin-bottom:24px;">
+        <div style="font-size:26px;font-weight:700;letter-spacing:3px;color:#FF5722;font-family:ui-monospace,'SF Mono',Menlo,monospace;">${code}</div>
+      </div>
+      <p style="font-size:13px;line-height:1.5;color:#71717a;margin:0;">
+        Ne le partage avec personne. Il ne fonctionne qu'une seule fois.
+      </p>`);
+  const text = `Bienvenue, ${params.salonName} !
+
+Ton salon est créé. Tu profites de ${params.trialDays} jours d'essai du plan Pro, sans engagement.
+
+Code de secours (pour retrouver ton salon sur un autre appareil) : ${params.activationCode}
+Ne le partage avec personne. Il ne fonctionne qu'une seule fois.`;
+  return { html, text };
+}

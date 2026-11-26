@@ -124,6 +124,16 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    // ───────── Inscription libre des salons (serveur uniquement) ─────────
+    //
+    // OTP d'inscription, index anti-doublons (email / téléphone) et compteurs
+    // de limitation de débit. Écrits uniquement par /api/salon-signup/* via
+    // l'Admin SDK. Fermeture totale côté client.
+    match /salonSignupOtps/{k} { allow read, write: if false; }
+    match /salonSignups/{k}    { allow read, write: if false; }
+    match /salonPhones/{k}     { allow read, write: if false; }
+    match /rateLimits/{k}      { allow read, write: if false; }
+
     // ───────── Email OTP codes (server-only) ─────────
     //
     // Stockage éphémère des codes OTP 6 chiffres envoyés par email via Brevo.

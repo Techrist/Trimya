@@ -39,6 +39,7 @@ export type RootStackParamList = {
 
   // Salon flow (Trimya Pro uniquement)
   SalonActivation: undefined;
+  SalonSignup: undefined;
   SalonTabs: undefined;
 
   // Owner flow (Trimya Pro uniquement, plans Entreprise)
