@@ -12,6 +12,7 @@ import {
 } from 'lucide-react-native';
 import { Screen } from '@/components/Screen';
 import { Card } from '@/components/Card';
+import { Button } from '@/components/Button';
 import { Avatar } from '@/components/Avatar';
 import { useOwner } from '@/hooks/useOwner';
 import { useApp } from '@/contexts/AppContext';
@@ -43,6 +44,15 @@ export function OwnerSalonsListScreen() {
         <Text style={styles.subtitle}>
           {t('owner.salons.countOfMax', { count: salons.length, max: limit })}
         </Text>
+
+        {salons.length < limit ? (
+          <View style={{ marginTop: spacing.md }}>
+            <Button
+              label={t('owner.createSalon.cta')}
+              onPress={() => nav.navigate('OwnerCreateSalon')}
+            />
+          </View>
+        ) : null}
 
         {canShowTransfer ? (
           <Pressable

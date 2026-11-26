@@ -34,6 +34,7 @@ import {
 import { Screen } from '@/components/Screen';
 import { Card } from '@/components/Card';
 import { Avatar } from '@/components/Avatar';
+import { SalonPasswordCard } from '@/components/SalonPasswordCard';
 import { db } from '@/services/firebase';
 import {
   getSalonSubscriptionMetrics,
@@ -416,6 +417,7 @@ export function OwnerSalonDetailScreen() {
       </Card>
 
       <Text style={styles.readonlyHint}>{t('owner.salon.readonlyHint')}</Text>
+      <SalonPasswordCard salonId={salonId} />
     </Screen>
   );
 }

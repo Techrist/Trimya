@@ -124,15 +124,22 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
-    // ───────── Inscription libre des salons (serveur uniquement) ─────────
+    // ───────── Comptes Trimya Pro (salon / propriétaire) ─────────
     //
-    // OTP d'inscription, index anti-doublons (email / téléphone) et compteurs
-    // de limitation de débit. Écrits uniquement par /api/salon-signup/* via
-    // l'Admin SDK. Fermeture totale côté client.
-    match /salonSignupOtps/{k} { allow read, write: if false; }
-    match /salonSignups/{k}    { allow read, write: if false; }
-    match /salonPhones/{k}     { allow read, write: if false; }
-    match /rateLimits/{k}      { allow read, write: if false; }
+    // accounts/{uid} (uid = Firebase Auth) : demande d'inscription puis compte
+    // actif. Statut pending / active / rejected, salonId une fois validé.
+    // Créé et modifié UNIQUEMENT côté serveur (Admin SDK). Lecture : la
+    // personne concernée (son propre doc — l'app y suit l'état de sa
+    // demande) et l'admin.
+    match /accounts/{uid} {
+      allow read: if (request.auth != null && request.auth.uid == uid) || isAdmin();
+      allow write: if false;
+    }
+
+    // Codes de vérification email (inscription / mot de passe oublié) et
+    // compteurs de limitation de débit : serveur uniquement, fermés au client.
+    match /authOtps/{k}   { allow read, write: if false; }
+    match /rateLimits/{k} { allow read, write: if false; }
 
     // ───────── Email OTP codes (server-only) ─────────
     //

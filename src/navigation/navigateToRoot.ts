@@ -4,7 +4,7 @@
  * explicite vers le début du flow).
  *
  * Pourquoi un helper : la route racine **diffère selon la cible de build** :
- *  - Trimya Client (B2C) : la racine est `EmailSignup` (auth OTP email via
+ *  - Trimya Client (B2C) : la racine est `ClientSignIn` (email + mot de passe ; inscription par code email via
  *    Brevo depuis novembre 2026 — l'ancien `PhoneSignup` est déprécié,
  *    bloqué par les opérateurs africains et nécessitait le plan Blaze).
  *  - Trimya Pro (B2B)    : la racine est `ProRoleSelection` (salon vs owner)
@@ -38,7 +38,7 @@ import type { RootStackParamList } from './types';
 export function navigateToRoot(nav: any): void {
   const rootRoute: keyof RootStackParamList = isProApp()
     ? 'ProRoleSelection'
-    : 'EmailSignup';
+    : 'ClientSignIn';
   nav.dispatch(
     CommonActions.reset({
       index: 0,

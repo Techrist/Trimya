@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -11,6 +11,7 @@ import { humanizeError } from '@/lib/humanizeError';
 import { navigateToRoot } from '@/navigation/navigateToRoot';
 import { activateSalonByCode, registerSalonKioskUid } from '@/services/salons';
 import { signInAsSalonKiosk, currentUser } from '@/services/auth';
+import { auth } from '@/services/firebase';
 import { registerSalonKioskPushToken } from '@/services/push';
 import { useApp } from '@/contexts/AppContext';
 import { useT } from '@/i18n';
@@ -24,7 +25,15 @@ export function SalonActivationScreen() {
   const { t } = useT();
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showCode, setShowCode] = useState(false);
   const { setSalonId, clearMode } = useApp();
+
+  // Compte email déjà connecté (demande en attente, session restaurée) :
+  // on reprend directement à l'écran d'état de la demande.
+  useEffect(() => {
+    const u = auth.currentUser;
+    if (u && !u.isAnonymous) nav.replace('AccountPending');
+  }, [nav]);
 
   const handleActivate = async () => {
     const trimmed = code.trim();
@@ -61,22 +70,37 @@ export function SalonActivationScreen() {
         <Text style={styles.subtitle}>{t('salon.activation.subtitle')}</Text>
       </View>
 
-      <TextField
-        label={t('salon.activation.codeLabel')}
-        placeholder={t('salon.activation.codePlaceholder')}
-        value={code}
-        onChangeText={(v) => setCode(v.toUpperCase())}
-        autoCapitalize="characters"
-        autoCorrect={false}
-      />
-
-      <Button label={t('salon.activation.activate')} onPress={handleActivate} loading={loading} />
-
+      <Button label={t('account.hub.signIn')} onPress={() => nav.navigate('AccountSignIn')} />
+      <View style={{ height: spacing.sm }} />
       <Button
-        label={t('salon.signup.cta')}
-        onPress={() => nav.navigate('SalonSignup')}
+        label={t('account.hub.signUp')}
+        onPress={() => nav.navigate('AccountSignUp', { type: 'salon' })}
         variant="secondary"
       />
+      <View style={{ height: spacing.sm }} />
+      <Button
+        label={t(showCode ? 'account.hub.hideCode' : 'account.hub.useCode')}
+        onPress={() => setShowCode((v) => !v)}
+        variant="ghost"
+      />
+
+      {showCode ? (
+        <View style={{ marginTop: spacing.sm }}>
+          <TextField
+            label={t('salon.activation.codeLabel')}
+            placeholder={t('salon.activation.codePlaceholder')}
+            value={code}
+            onChangeText={(v) => setCode(v.toUpperCase())}
+            autoCapitalize="characters"
+            autoCorrect={false}
+          />
+          <Button
+            label={t('salon.activation.activate')}
+            onPress={handleActivate}
+            loading={loading}
+          />
+        </View>
+      ) : null}
 
       <Button
         label={t('salon.activation.notSalon')}

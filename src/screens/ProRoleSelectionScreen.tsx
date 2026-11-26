@@ -19,7 +19,7 @@ type Nav = NativeStackNavigationProp<RootStackParamList, 'ProRoleSelection'>;
  *
  * Deux choix uniquement :
  *  - Activer un salon (mode kiosque tablette) → SalonActivation
- *  - Se connecter en tant que propriétaire     → OwnerSignIn
+ *  - Se connecter en tant que propriétaire     → AccountSignIn
  *
  * Le mode `client` n'existe pas dans Trimya Pro : un client utilisant cette
  * app par erreur doit être renvoyé vers Trimya (B2C). Un lien discret en bas
@@ -33,7 +33,7 @@ export function ProRoleSelectionScreen() {
   const choose = async (role: 'salon' | 'owner') => {
     await setMode(role);
     if (role === 'salon') nav.replace('SalonActivation');
-    else nav.replace('OwnerSignIn');
+    else nav.replace('AccountSignIn');
   };
 
   return (

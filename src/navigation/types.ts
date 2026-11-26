@@ -12,11 +12,12 @@ export type RootStackParamList = {
 
   // Client flow (Trimya uniquement)
   // PhoneSignup/OtpVerify conservés pour compat ascendante (deep links,
-  // bundles natifs non-PWA). En PWA le flux par défaut est EmailSignup →
+  // bundles natifs non-PWA). En PWA le flux par défaut est ClientSignIn →
   // EmailLinkSent → ClientName/ClientTabs (après clic sur le magic link).
   PhoneSignup: undefined;
   OtpVerify: { phone: string };
-  EmailSignup: undefined;
+  ClientSignIn: undefined;
+  ClientSignUp: undefined;
   // OtpCodeVerify : nouveau flux par défaut — saisie du code 6 chiffres
   // reçu par email (via Brevo + Vercel admin). EmailLinkSent reste pour
   // fallback magic link si on veut un switch.
@@ -39,11 +40,13 @@ export type RootStackParamList = {
 
   // Salon flow (Trimya Pro uniquement)
   SalonActivation: undefined;
-  SalonSignup: undefined;
   SalonTabs: undefined;
 
   // Owner flow (Trimya Pro uniquement, plans Entreprise)
-  OwnerSignIn: undefined;
+  AccountSignIn: undefined;
+  AccountSignUp: { type?: 'salon' | 'owner' } | undefined;
+  ForgotPassword: undefined;
+  AccountPending: undefined;
   OwnerTabs: undefined;
 };
 
@@ -113,4 +116,5 @@ export type OwnerSalonsStackParamList = {
   OwnerSalonsList: undefined;
   OwnerSalonDetail: { salonId: string };
   OwnerBarberTransfer: undefined;
+  OwnerCreateSalon: undefined;
 };

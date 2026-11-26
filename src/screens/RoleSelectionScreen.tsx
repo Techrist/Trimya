@@ -23,7 +23,7 @@ export function RoleSelectionScreen() {
     await setMode(role);
     if (role === 'client') nav.replace('PhoneSignup');
     else if (role === 'salon') nav.replace('SalonActivation');
-    else nav.replace('OwnerSignIn');
+    else nav.replace('AccountSignIn');
   };
 
   return (

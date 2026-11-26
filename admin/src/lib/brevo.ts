@@ -157,59 +157,55 @@ function shell(inner: string): string {
 </html>`;
 }
 
-/** Email du code de vérification pour la création d'un salon. */
-export function renderSalonSignupEmail(params: {
+/** Email avec un code à 6 chiffres (inscription ou réinitialisation). */
+export function renderCodeEmail(params: {
+  title: string;
+  intro: string;
   code: string;
   expiresInMinutes: number;
+  footer: string;
 }): { html: string; text: string } {
   const safeCode = params.code.replace(/[^0-9]/g, "");
   const html = shell(`
-      <h1 style="font-size:24px;font-weight:700;margin:0 0 12px;color:#f4f4f5;">Crée ton salon sur Trimya</h1>
+      <h1 style="font-size:24px;font-weight:700;margin:0 0 12px;color:#f4f4f5;">${escapeHtml(params.title)}</h1>
       <p style="font-size:15px;line-height:1.5;color:#a1a1aa;margin:0 0 32px;">
-        Entre ce code dans l'app pour confirmer ton email. Il est valable ${params.expiresInMinutes} minutes.
+        ${escapeHtml(params.intro)} Il est valable ${params.expiresInMinutes} minutes.
       </p>
       <div style="background:#18181b;border:1px solid #27272a;border-radius:12px;padding:24px;text-align:center;margin-bottom:32px;">
         <div style="font-size:36px;font-weight:700;letter-spacing:8px;color:#FF5722;font-family:ui-monospace,'SF Mono',Menlo,monospace;">${safeCode}</div>
       </div>
-      <p style="font-size:13px;line-height:1.5;color:#71717a;margin:0;">
-        Tu n'as pas demandé ce code ? Ignore cet email, rien ne sera créé.
-      </p>`);
-  const text = `Crée ton salon sur Trimya
+      <p style="font-size:13px;line-height:1.5;color:#71717a;margin:0;">${escapeHtml(params.footer)}</p>`);
+  const text = `${params.title}
 
-Ton code de vérification : ${safeCode}
-Il est valable ${params.expiresInMinutes} minutes.
+${params.intro} Il est valable ${params.expiresInMinutes} minutes.
 
-Tu n'as pas demandé ce code ? Ignore cet email, rien ne sera créé.`;
+Code : ${safeCode}
+
+${params.footer}`;
   return { html, text };
 }
 
-/** Email de bienvenue avec le code de secours (changement d'appareil). */
-export function renderSalonWelcomeEmail(params: {
-  salonName: string;
-  activationCode: string;
-  trialDays: number;
+/** Email d'information générique : titre + paragraphes. */
+export function renderInfoEmail(params: {
+  title: string;
+  paragraphs: string[];
+  /** Bouton facultatif (ex. « Ouvrir Trimya Pro »). */
+  cta?: { label: string; url: string };
 }): { html: string; text: string } {
-  const name = escapeHtml(params.salonName);
-  const code = escapeHtml(params.activationCode);
+  const button = params.cta
+    ? `<div style="margin:24px 0 8px;"><a href="${escapeHtml(params.cta.url)}" style="display:inline-block;background:#FF5722;color:#000000;font-weight:700;font-size:15px;text-decoration:none;padding:12px 24px;border-radius:10px;">${escapeHtml(params.cta.label)}</a></div>`
+    : "";
   const html = shell(`
-      <h1 style="font-size:24px;font-weight:700;margin:0 0 12px;color:#f4f4f5;">Bienvenue, ${name} !</h1>
-      <p style="font-size:15px;line-height:1.5;color:#a1a1aa;margin:0 0 16px;">
-        Ton salon est créé. Tu profites de ${params.trialDays} jours d'essai du plan Pro, sans engagement.
-      </p>
-      <p style="font-size:15px;line-height:1.5;color:#a1a1aa;margin:0 0 12px;">
-        Garde précieusement ce <strong>code de secours</strong> : il te permet de retrouver ton salon sur un autre appareil (tablette changée ou perdue).
-      </p>
-      <div style="background:#18181b;border:1px solid #27272a;border-radius:12px;padding:20px;text-align:center;margin-bottom:24px;">
-        <div style="font-size:26px;font-weight:700;letter-spacing:3px;color:#FF5722;font-family:ui-monospace,'SF Mono',Menlo,monospace;">${code}</div>
-      </div>
-      <p style="font-size:13px;line-height:1.5;color:#71717a;margin:0;">
-        Ne le partage avec personne. Il ne fonctionne qu'une seule fois.
-      </p>`);
-  const text = `Bienvenue, ${params.salonName} !
-
-Ton salon est créé. Tu profites de ${params.trialDays} jours d'essai du plan Pro, sans engagement.
-
-Code de secours (pour retrouver ton salon sur un autre appareil) : ${params.activationCode}
-Ne le partage avec personne. Il ne fonctionne qu'une seule fois.`;
+      <h1 style="font-size:24px;font-weight:700;margin:0 0 16px;color:#f4f4f5;">${escapeHtml(params.title)}</h1>
+      ${params.paragraphs
+        .map(
+          (p) =>
+            `<p style="font-size:15px;line-height:1.5;color:#a1a1aa;margin:0 0 12px;">${escapeHtml(p)}</p>`,
+        )
+        .join("\n      ")}
+      ${button}`);
+  const text = `${params.title}\n\n${params.paragraphs.join("\n\n")}${
+    params.cta ? `\n\n${params.cta.label} : ${params.cta.url}` : ""
+  }`;
   return { html, text };
 }

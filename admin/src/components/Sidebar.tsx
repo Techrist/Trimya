@@ -16,6 +16,7 @@ import {
   ArrowRightLeft,
   Crown,
   Wallet,
+  UserCheck,
   Building2,
   Menu,
   X,
@@ -33,6 +34,7 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { href: "/dashboard", label: "Vue d'ensemble", icon: LayoutDashboard },
+  { href: "/dashboard/requests", label: "Demandes", icon: UserCheck },
   { href: "/dashboard/salons", label: "Salons", icon: Store },
   { href: "/dashboard/owners", label: "Propriétaires", icon: Building2 },
   { href: "/dashboard/clients", label: "Clients", icon: Users },

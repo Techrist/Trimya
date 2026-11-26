@@ -17,7 +17,8 @@ import { ProRoleSelectionScreen } from '@/screens/ProRoleSelectionScreen';
 // ── Écrans Client (chargés seulement dans Trimya) ──────────────
 import { PhoneSignupScreen } from '@/screens/client/PhoneSignupScreen';
 import { OtpVerifyScreen } from '@/screens/client/OtpVerifyScreen';
-import { EmailSignupScreen } from '@/screens/client/EmailSignupScreen';
+import { ClientSignInScreen } from '@/screens/client/ClientSignInScreen';
+import { ClientSignUpScreen } from '@/screens/client/ClientSignUpScreen';
 import { EmailLinkSentScreen } from '@/screens/client/EmailLinkSentScreen';
 import { OtpCodeVerifyScreen } from '@/screens/client/OtpCodeVerifyScreen';
 import { ClientNameScreen } from '@/screens/client/ClientNameScreen';
@@ -37,9 +38,11 @@ import { ClientTabsNavigator } from './ClientTabsNavigator';
 
 // ── Écrans Pro (chargés seulement dans Trimya Pro) ─────────────
 import { SalonActivationScreen } from '@/screens/salon/SalonActivationScreen';
-import { SalonSignupScreen } from '@/screens/salon/SalonSignupScreen';
 import { SalonTabsNavigator } from './SalonTabsNavigator';
-import { OwnerSignInScreen } from '@/screens/owner/OwnerSignInScreen';
+import { AccountSignInScreen } from '@/screens/account/AccountSignInScreen';
+import { AccountSignUpScreen } from '@/screens/account/AccountSignUpScreen';
+import { ForgotPasswordScreen } from '@/screens/account/ForgotPasswordScreen';
+import { AccountPendingScreen } from '@/screens/account/AccountPendingScreen';
 import { OwnerTabsNavigator } from './OwnerTabsNavigator';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -51,7 +54,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
  *                       (pas de role selection : le rôle est implicite)
  *
  *   TRIMYA_APP=pro    → onboarding → ProRoleSelection
- *                       → SalonActivation ou OwnerSignIn → tabs correspondantes
+ *                       → SalonActivation ou AccountSignIn → tabs correspondantes
  *
  * Les écrans non utilisés par la cible courante ne sont pas montés dans
  * le navigator. Note : le JS bundle contient toujours les deux ensembles
@@ -190,11 +193,13 @@ export function RootNavigator() {
       {/* ─── Trimya Client ──────────────────────────────────────── */}
       {isClient && (
         <>
-          <Stack.Screen name="EmailSignup" component={EmailSignupScreen} />
+          <Stack.Screen name="ClientSignIn" component={ClientSignInScreen} />
+          <Stack.Screen name="ClientSignUp" component={ClientSignUpScreen} />
+          <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
           <Stack.Screen name="OtpCodeVerify" component={OtpCodeVerifyScreen} />
           <Stack.Screen name="EmailLinkSent" component={EmailLinkSentScreen} />
           {/* PhoneSignup/OtpVerify conservés pour compat (anciens deep-links,
-              bundles natifs). Nouveau flux par défaut : EmailSignup. */}
+              bundles natifs). Nouveau flux par défaut : ClientSignIn. */}
           <Stack.Screen name="PhoneSignup" component={PhoneSignupScreen} />
           <Stack.Screen name="OtpVerify" component={OtpVerifyScreen} />
           <Stack.Screen name="ClientName" component={ClientNameScreen} />
@@ -249,9 +254,11 @@ export function RootNavigator() {
             name="SalonActivation"
             component={SalonActivationScreen}
           />
-          <Stack.Screen name="SalonSignup" component={SalonSignupScreen} />
           <Stack.Screen name="SalonTabs" component={SalonTabsNavigator} />
-          <Stack.Screen name="OwnerSignIn" component={OwnerSignInScreen} />
+          <Stack.Screen name="AccountSignIn" component={AccountSignInScreen} />
+          <Stack.Screen name="AccountSignUp" component={AccountSignUpScreen} />
+          <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+          <Stack.Screen name="AccountPending" component={AccountPendingScreen} />
           <Stack.Screen name="OwnerTabs" component={OwnerTabsNavigator} />
         </>
       )}
@@ -285,9 +292,9 @@ function computeInitialRoute(ctx: InitialRouteContext): keyof RootStackParamList
   // ── Trimya Client ────────────────────────────────────────────
   if (ctx.isClient) {
     // L'app client n'a qu'un seul rôle implicite. Pas de RoleSelection.
-    // Flux par défaut : EmailSignup (magic link). Plus de SMS — bloqués par
+    // Flux par défaut : ClientSignIn (email + mot de passe). Plus de SMS — bloqués par
     // MTN Cameroun et plan Blaze non activé. Voir src/services/emailAuth.ts.
-    return ctx.user ? 'ClientTabs' : 'EmailSignup';
+    return ctx.user ? 'ClientTabs' : 'ClientSignIn';
   }
 
   // ── Trimya Pro ───────────────────────────────────────────────
@@ -302,7 +309,7 @@ function computeInitialRoute(ctx: InitialRouteContext): keyof RootStackParamList
       return ctx.salonId ? 'SalonTabs' : 'SalonActivation';
     }
     // mode === 'owner'
-    return ctx.user && ctx.ownerId ? 'OwnerTabs' : 'OwnerSignIn';
+    return ctx.user && ctx.ownerId ? 'OwnerTabs' : 'AccountSignIn';
   }
 
   // ── Fallback (ne devrait pas arriver) ────────────────────────

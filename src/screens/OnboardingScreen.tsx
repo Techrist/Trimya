@@ -33,10 +33,10 @@ export function OnboardingScreen() {
 
   const handleStart = async () => {
     await setOnboarded();
-    // Trimya Client : pas de RoleSelection, on va directement à EmailSignup
+    // Trimya Client : pas de RoleSelection, on va directement à ClientSignIn
     //   (flux OTP par email via Brevo — remplace l'ancien SMS/magic link).
     // Trimya Pro    : on demande de choisir entre Salon et Propriétaire.
-    nav.replace(isPro ? 'ProRoleSelection' : 'EmailSignup');
+    nav.replace(isPro ? 'ProRoleSelection' : 'ClientSignIn');
   };
 
   // Features adaptées à la cible : marketing client vs marketing pro

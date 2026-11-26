@@ -16,6 +16,7 @@ import { OwnerSalonsListScreen } from '@/screens/owner/OwnerSalonsListScreen';
 import { OwnerSalonDetailScreen } from '@/screens/owner/OwnerSalonDetailScreen';
 import { OwnerProfileScreen } from '@/screens/owner/OwnerProfileScreen';
 import { OwnerBarberTransferScreen } from '@/screens/owner/OwnerBarberTransferScreen';
+import { OwnerCreateSalonScreen } from '@/screens/owner/OwnerCreateSalonScreen';
 
 const Tab = createBottomTabNavigator<OwnerTabParamList>();
 const SalonsStack = createNativeStackNavigator<OwnerSalonsStackParamList>();
@@ -39,6 +40,10 @@ function SalonsStackNavigator() {
       <SalonsStack.Screen
         name="OwnerBarberTransfer"
         component={OwnerBarberTransferScreen}
+      />
+      <SalonsStack.Screen
+        name="OwnerCreateSalon"
+        component={OwnerCreateSalonScreen}
       />
     </SalonsStack.Navigator>
   );

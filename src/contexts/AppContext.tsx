@@ -72,7 +72,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       // Si l'URL actuelle est un sign-in link Firebase (?apiKey=...&oobCode=...),
       // on tente de compléter la connexion AVANT d'exposer `ready` au navigator.
       // Ça garantit que le user Firebase est déjà settlé quand RootNavigator
-      // calcule initialRoute, et évite un flash "EmailSignup → ClientTabs".
+      // calcule initialRoute, et évite un flash "ClientSignIn → ClientTabs".
       if (isMagicLinkUrl()) {
         setMagicLinkStatus('processing');
         setMagicLinkTarget(getStoredMagicLinkTarget());
