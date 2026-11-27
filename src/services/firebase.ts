@@ -4,6 +4,7 @@ import {
   initializeAuth,
   browserLocalPersistence,
   indexedDBLocalPersistence,
+  browserPopupRedirectResolver,
 } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { Platform } from 'react-native';
@@ -39,6 +40,10 @@ try {
   if (Platform.OS === 'web') {
     auth = initializeAuth(app, {
       persistence: [indexedDBLocalPersistence, browserLocalPersistence],
+      // Indispensable pour signInWithPopup (connexion Google) : `initializeAuth`,
+      // contrairement à `getAuth`, n'inclut pas ce composant et lève sinon
+      // `auth/argument-error`.
+      popupRedirectResolver: browserPopupRedirectResolver,
     });
   } else {
     // Natif : lazy require pour que le bundler web ne charge pas AsyncStorage
