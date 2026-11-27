@@ -14,7 +14,7 @@ import {
   emailKey,
   passwordSchema,
 } from "@/lib/account-utils";
-import { PLANS, getInheritedSalonPlan, type OwnerPlanId } from "@/lib/plans";
+import { getInheritedSalonPlan, ownerSalonLimit, type OwnerPlanId } from "@/lib/plans";
 import { buildActivationCode, slugify } from "@/lib/slug";
 
 /**
@@ -142,8 +142,11 @@ export async function POST(req: NextRequest) {
           if (!planActive && !trialActive) throw new OwnerSalonError("no_enterprise_plan", 422);
 
           const salonIds = Array.isArray(o.salonIds) ? (o.salonIds as string[]) : [];
-          const max = PLANS.enterprise.limits.maxSalons ?? 5;
-          if (salonIds.length >= max) throw new OwnerSalonError("salon_limit_reached", 422);
+          const max = ownerSalonLimit({
+            plan: o.plan as OwnerPlanId | undefined,
+            trialEndsAt,
+          });
+          if (max !== null && salonIds.length >= max) throw new OwnerSalonError("salon_limit_reached", 422);
           if (salonSnap.exists || codeSnap.exists) throw new OwnerSalonError("id_taken", 409);
 
           tx.set(salonRef, {

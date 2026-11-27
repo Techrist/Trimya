@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { assertCanPay, computeQuote } from "@/lib/billing";
+import { assertCanPay, computeQuote, getPaidMonthlyRate } from "@/lib/billing";
 import { billingErrorResponse, json, requireUid } from "@/lib/billing-http";
+import { getActivePromo } from "@/lib/promo";
 import { handleOptions } from "@/lib/cors";
 import { logServerError } from "@/lib/api-errors";
 
@@ -37,7 +38,16 @@ export async function POST(req: NextRequest) {
 
   try {
     const target = await assertCanPay(auth.uid, b.targetType, b.targetId);
-    const quote = computeQuote(b.targetType, b.targetId, target, b.planId, b.period);
+    const quote = computeQuote(
+      b.targetType,
+      b.targetId,
+      target,
+      b.planId,
+      b.period,
+      Date.now(),
+      await getActivePromo(),
+      await getPaidMonthlyRate(b.targetType, b.targetId),
+    );
     return json(origin, { ok: true, quote });
   } catch (e) {
     logServerError("billing.quote", e);

@@ -28,6 +28,7 @@ import { KpiCard } from "@/components/KpiCard";
 import { adminFetch } from "@/lib/auth-client";
 import {
   PLANS,
+  ownerSalonLimit,
   isOwnerEnterpriseActive,
   isOwnerTrialActive,
   ownerTrialDaysLeft,
@@ -159,8 +160,8 @@ export default function OwnerDetailPage({
   const trialLeft = ownerTrialDaysLeft(owner);
   const expiresInDays = planExpiresInDays(owner);
   const disabled = !!owner.disabledAt;
-  const limit = PLANS.enterprise.limits.maxSalons ?? 5;
-  const atLimit = salons.length >= limit;
+  const limit = ownerSalonLimit(owner); // null = illimité
+  const atLimit = limit !== null && salons.length >= limit;
 
   return (
     <div className="space-y-6">
@@ -214,7 +215,7 @@ export default function OwnerDetailPage({
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <KpiCard
           label="Salons"
-          value={`${salons.length} / ${limit}`}
+          value={limit === null ? `${salons.length}` : `${salons.length} / ${limit}`}
           icon={Building2}
           tone="primary"
         />
@@ -244,7 +245,7 @@ export default function OwnerDetailPage({
         <div className="mb-3 flex items-baseline justify-between">
           <CardTitle>Salons assignés</CardTitle>
           <CardDescription>
-            {salons.length} / {limit}
+            {limit === null ? salons.length : `${salons.length} / ${limit}`}
           </CardDescription>
         </div>
 
@@ -359,7 +360,7 @@ export default function OwnerDetailPage({
           </div>
           {atLimit ? (
             <p className="mt-2 text-xs text-danger">
-              Limite atteinte ({limit} salons). Retire-en un pour pouvoir en ajouter un autre.
+              Limite atteinte ({limit} salons pour Entreprise Standard). Retire-en un pour pouvoir en ajouter un autre.
             </p>
           ) : null}
         </div>

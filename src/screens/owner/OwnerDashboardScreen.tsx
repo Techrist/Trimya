@@ -30,6 +30,7 @@ import { colors, radius, spacing, typography } from '@/theme';
 import { Cut } from '@/types';
 import {
   PLANS,
+  ownerSalonLimit,
   isOwnerEnterpriseActive,
   planExpiresInDays,
   getPlanLabel,
@@ -164,7 +165,7 @@ export function OwnerDashboardScreen() {
     };
   }, [salons]);
 
-  const limit = PLANS.enterprise.limits.maxSalons ?? 5;
+  const limit = owner ? ownerSalonLimit(owner) : null; // null = illimité
   const enterprise = owner ? isOwnerEnterpriseActive(owner) : false;
   const expiresInDays = owner ? planExpiresInDays(owner) : null;
 
@@ -229,7 +230,7 @@ export function OwnerDashboardScreen() {
         <Stat
           Icon={Store}
           label={t('owner.dashboard.stat.salons')}
-          value={`${salons.length} / ${limit}`}
+          value={limit === null ? t('owner.salons.countUnlimited', { count: salons.length }) : `${salons.length} / ${limit}`}
           tone="primary"
         />
         <Stat

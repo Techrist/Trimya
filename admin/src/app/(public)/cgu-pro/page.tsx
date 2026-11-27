@@ -83,7 +83,7 @@ export default function CGUProPage() {
           </tr>
           <tr>
             <td>Entreprise Pro</td>
-            <td>Chaîne jusqu&apos;à 5 salons, features Pro</td>
+            <td>Chaîne, salons illimités, features Pro</td>
             <td>40 000</td>
           </tr>
         </tbody>

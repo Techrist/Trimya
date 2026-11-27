@@ -23,6 +23,10 @@ export interface BillingQuote {
   period: BillingPeriod;
   kind: 'new' | 'renew' | 'upgrade';
   listPrice: number;
+  /** Offre de lancement : remise (FCFA), pourcentage et date de fin. 0 si aucune. */
+  promoDiscount?: number;
+  promoPercent?: number;
+  promoEndsAt?: number;
   credit: number;
   amount: number;
   currency: 'XAF';

@@ -2,8 +2,10 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { adminDb } from "@/lib/firebase-admin";
-import { assertCanPay, computeQuote } from "@/lib/billing";
+import { assertCanPay, computeQuote, getPaidMonthlyRate } from "@/lib/billing";
 import { billingErrorResponse, json, requireUid } from "@/lib/billing-http";
+import { getActivePromo } from "@/lib/promo";
+import { consumeLimit } from "@/lib/rate-limit";
 import { handleOptions } from "@/lib/cors";
 import { logServerError } from "@/lib/api-errors";
 import { PLANS } from "@/lib/plans";
@@ -70,7 +72,19 @@ export async function POST(req: NextRequest) {
 
   try {
     const target = await assertCanPay(auth.uid, b.targetType, b.targetId);
-    const quote = computeQuote(b.targetType, b.targetId, target, b.planId, b.period);
+    // Anti-abus : chaque tentative envoie une demande de paiement au téléphone saisi.
+    await consumeLimit(`checkout:uid:${auth.uid}`, 10, 60 * 60 * 1000);
+    await consumeLimit(`checkout:phone:${phone}`, 5, 60 * 60 * 1000);
+    const quote = computeQuote(
+      b.targetType,
+      b.targetId,
+      target,
+      b.planId,
+      b.period,
+      Date.now(),
+      await getActivePromo(),
+      await getPaidMonthlyRate(b.targetType, b.targetId),
+    );
 
     const targetKey = `${b.targetType}:${b.targetId}`;
     const payments = adminDb.collection("payments");
@@ -88,7 +102,6 @@ export async function POST(req: NextRequest) {
         p.period === b.period &&
         p.phone === phone &&
         p.network === b.network &&
-        p.amount === quote.amount &&
         typeof p.createdAt === "number" &&
         now - p.createdAt < REUSE_WINDOW_MS
       );
@@ -106,6 +119,8 @@ export async function POST(req: NextRequest) {
         period: b.period,
         kind: quote.kind,
         listPrice: quote.listPrice,
+        promoDiscount: quote.promoDiscount,
+        promoPercent: quote.promoPercent,
         credit: quote.credit,
         amount: quote.amount,
         currency: quote.currency,
@@ -135,7 +150,8 @@ export async function POST(req: NextRequest) {
     let result;
     try {
       result = await createSoftpay({
-        amount: quote.amount,
+        // Retry réutilisé : le montant déjà enregistré fait foi.
+        amount: reusable ? Number(reusable.data().amount) || quote.amount : quote.amount,
         network: b.network as "mtn_cm" | "orange_cm",
         description: `Trimya ${PLANS[b.planId].label} (${b.period === "yearly" ? "1 an" : "1 mois"})`,
         customer: { email, first_name: first, last_name: last, phone },

@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/Input";
 import { formatDate } from "@/lib/format";
 import {
   PLANS,
+  ownerSalonLimit,
   isOwnerEnterpriseActive,
   planExpiresInDays,
 } from "@/lib/plans";
@@ -129,7 +130,7 @@ function OwnerRow({ owner }: { owner: Owner }) {
       <td className="px-5 py-4">
         <span className="inline-flex items-center gap-1.5 text-sm text-text-muted">
           <Building2 className="h-3.5 w-3.5" />
-          {(owner.salonIds?.length ?? 0)} / {PLANS.enterprise.limits.maxSalons}
+          {(owner.salonIds?.length ?? 0)}{ownerSalonLimit(owner) === null ? "" : ` / ${ownerSalonLimit(owner)}`}
         </span>
       </td>
       <td className="px-5 py-4">

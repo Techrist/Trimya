@@ -364,7 +364,18 @@ export function UpgradeModal({
                   {t('billing.credit', { amount: fcfa(quote.credit) })}
                 </Text>
               ) : null}
+              {quote.promoPercent && quote.promoEndsAt ? (
+                <Text style={styles.promoText}>
+                  {t('billing.promo', {
+                    percent: quote.promoPercent,
+                    date: new Date(quote.promoEndsAt).toLocaleDateString(locale),
+                  })}
+                </Text>
+              ) : null}
               <Text style={styles.priceLabel}>{t('billing.total')}</Text>
+              {quote.promoPercent && quote.promoDiscount ? (
+                <Text style={styles.oldPrice}>{fcfa(quote.listPrice)}</Text>
+              ) : null}
               <Text style={styles.price}>{fcfa(quote.amount)}</Text>
               <Text style={styles.feesNote}>{t('billing.feesNote')}</Text>
             </>
@@ -620,6 +631,18 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     textAlign: 'center',
     marginBottom: spacing.xs,
+  },
+  promoText: {
+    ...typography.caption,
+    color: colors.primary,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
+  },
+  oldPrice: {
+    ...typography.caption,
+    color: colors.textMuted,
+    textAlign: 'center',
+    textDecorationLine: 'line-through',
   },
   creditText: {
     ...typography.caption,

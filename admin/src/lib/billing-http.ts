@@ -3,6 +3,7 @@ import type { NextResponse } from "next/server";
 import { json } from "./http";
 import { BillingError } from "./billing";
 import { SasPayError } from "./saspay";
+import { RateLimitError } from "./rate-limit";
 
 /**
  * Traduit une erreur de facturation / SasPay en réponse sûre (code applicatif
@@ -14,6 +15,9 @@ export function billingErrorResponse(
 ): NextResponse {
   if (e instanceof BillingError) {
     return json(origin, { error: e.code }, e.httpStatus);
+  }
+  if (e instanceof RateLimitError) {
+    return json(origin, { error: "rate_limited" }, 429);
   }
   if (e instanceof SasPayError) {
     // 429 / 5xx / réseau : transitoire. 4xx : on remonte un code lisible.

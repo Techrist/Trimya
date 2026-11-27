@@ -15,6 +15,7 @@ import {
 import { db } from "@/lib/firebase-client";
 import { Card, CardTitle, CardDescription } from "@/components/ui/Card";
 import { KpiCard } from "@/components/KpiCard";
+import { LaunchPromoCard } from "@/components/LaunchPromoCard";
 import { PlanBadge } from "@/components/PlanBadge";
 import { formatDate, formatNumber, formatPrice } from "@/lib/format";
 import {
@@ -85,6 +86,8 @@ export default function PlansOverviewPage() {
           Vue globale des abonnements, renouvellements et trials
         </p>
       </header>
+
+      <LaunchPromoCard />
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard

@@ -19,7 +19,7 @@ import { useApp } from '@/contexts/AppContext';
 import { useT } from '@/i18n';
 import { colors, radius, spacing, typography } from '@/theme';
 import { Salon } from '@/types';
-import { PLANS, isOwnerEnterpriseActive } from '@/lib/plans';
+import { isOwnerEnterpriseActive, ownerSalonLimit } from '@/lib/plans';
 import { OwnerSalonsStackParamList } from '@/navigation/types';
 
 type Nav = NativeStackNavigationProp<OwnerSalonsStackParamList, 'OwnerSalonsList'>;
@@ -30,7 +30,7 @@ export function OwnerSalonsListScreen() {
   const { salons, owner, loading } = useOwner(ownerId);
   const { t } = useT();
 
-  const limit = PLANS.enterprise.limits.maxSalons ?? 5;
+  const limit = owner ? ownerSalonLimit(owner) : null; // null = illimité
   const enterprise = owner ? isOwnerEnterpriseActive(owner) : false;
   // Le bouton "Transférer un coiffeur" n'a de sens qu'à partir de 2 salons
   // sur un plan Entreprise actif (la rule serveur refusera de toute façon
@@ -42,10 +42,12 @@ export function OwnerSalonsListScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>{t('owner.salons.title')}</Text>
         <Text style={styles.subtitle}>
-          {t('owner.salons.countOfMax', { count: salons.length, max: limit })}
+          {limit === null
+            ? t('owner.salons.countUnlimited', { count: salons.length })
+            : t('owner.salons.countOfMax', { count: salons.length, max: limit })}
         </Text>
 
-        {salons.length < limit ? (
+        {limit === null || salons.length < limit ? (
           <View style={{ marginTop: spacing.md }}>
             <Button
               label={t('owner.createSalon.cta')}

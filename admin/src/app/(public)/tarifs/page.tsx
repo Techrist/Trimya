@@ -75,8 +75,8 @@ export default function TarifsPage() {
             answer="Non. L'app Trimya côté client est 100% gratuite, sans abonnement, sans achat in-app. Les seuls frais facturés au client sont les services réels du salon (coupes, abonnements coupes illimitées), payés directement au salon comme aujourd'hui."
           />
           <FAQItem
-            question="Et si j'ai plus de 5 salons ?"
-            answer="Contacte-nous pour un tarif sur mesure. À partir de 6 salons, on monte un contrat spécifique adapté à ta chaîne."
+            question="Et si j'ai plus de 5 salons avec l'Entreprise Standard ?"
+            answer="Passe à Entreprise Pro : le nombre de salons y est illimité."
           />
         </div>
       </section>

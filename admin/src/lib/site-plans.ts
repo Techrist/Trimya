@@ -80,11 +80,11 @@ export const PLANS: Plan[] = [
   {
     id: "enterprise",
     name: "Entreprise Pro",
-    audience: "Chaîne (jusqu'à 5 salons)",
+    audience: "Chaîne (salons illimités)",
     price: 40000,
     description: "Plusieurs salons, toute la puissance Pro",
     features: [
-      "Jusqu'à 5 salons sous un même compte",
+      "Salons illimités sous un même compte",
       "Tous les salons inclus passent en Pro",
       "Réservations + abonnements + stats avancées",
       "Coupe à domicile sur tous les salons",

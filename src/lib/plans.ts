@@ -193,7 +193,7 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
     monthlyPriceFcfa: 40_000,
     tagline: 'Plusieurs salons, toute la puissance Pro',
     bullets: [
-      'Jusqu\'à 5 salons sous un même compte',
+      'Salons illimités sous un même compte',
       'Tous les salons inclus passent en Pro',
       'Tableau de bord consolidé multi-salons',
       'Réservations + abonnements + stats avancées',
@@ -205,7 +205,7 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
     limits: {
       maxClients: null,
       maxBarbers: null,
-      maxSalons: 5,
+      maxSalons: null,
       messaging: true,
       reservations: true,
       vipAndNotes: true,
@@ -404,6 +404,16 @@ export function planExpiresInDays(
 export function formatPlanPrice(p: PlanDefinition): string {
   if (p.monthlyPriceFcfa === 0) return 'Gratuit';
   return `${new Intl.NumberFormat('fr-FR').format(p.monthlyPriceFcfa)} FCFA / mois`;
+}
+
+/**
+ * Nombre maximum de salons d'un propriétaire (null = illimité).
+ * Entreprise Pro (et essai) : illimité. Entreprise Standard : 5.
+ */
+export function ownerSalonLimit(owner: { plan?: OwnerPlanId; trialEndsAt?: number }): number | null {
+  const onTrial = !!owner.trialEndsAt && owner.trialEndsAt > Date.now();
+  if (owner.plan === 'enterprise_standard' && !onTrial) return PLANS.enterprise_standard.limits.maxSalons;
+  return PLANS.enterprise.limits.maxSalons;
 }
 
 /**

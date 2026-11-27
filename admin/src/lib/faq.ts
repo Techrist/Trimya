@@ -64,7 +64,7 @@ export const FAQ: FaqItem[] = [
   {
     question: "Peut-on gérer plusieurs salons de coiffure avec Trimya ?",
     answer:
-      "Oui, avec les plans Entreprise : jusqu'à 5 salons sous un même compte, un tableau de bord consolidé, une carte de fidélité partagée entre les salons de la chaîne (le client cumule ses coupes dans tous les salons) et le transfert de coiffeurs d'un salon à l'autre.",
+      "Oui, avec les plans Entreprise : jusqu'à 5 salons avec Entreprise Standard, illimités avec Entreprise Pro, un tableau de bord consolidé, une carte de fidélité partagée entre les salons de la chaîne (le client cumule ses coupes dans tous les salons) et le transfert de coiffeurs d'un salon à l'autre.",
   },
   {
     question: "Quelles fonctionnalités Trimya propose-t-il en plus de la carte de fidélité ?",

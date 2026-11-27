@@ -1,5 +1,6 @@
 import "server-only";
 import { adminDb } from "./firebase-admin";
+import type { Promo } from "./promo";
 import {
   DAY_MS,
   PERIOD_DAYS,
@@ -60,6 +61,11 @@ export interface Quote {
   kind: PurchaseKind;
   /** Prix catalogue de la période. */
   listPrice: number;
+  /** Remise de l'offre de lancement (FCFA), 0 si aucune. */
+  promoDiscount: number;
+  /** Pourcentage de l'offre appliquée (0 si aucune) et sa date de fin (ms). */
+  promoPercent: number;
+  promoEndsAt: number;
   /** Crédit déduit (valeur des jours restants) — upgrade uniquement. */
   credit: number;
   /** Montant à payer (hors frais SasPay, à la charge du payeur en plus). */
@@ -108,6 +114,21 @@ export async function assertCanPay(
   return data;
 }
 
+/** Dernier tarif mensuel réellement payé par la cible (null si inconnu). */
+export async function getPaidMonthlyRate(
+  targetType: TargetType,
+  targetId: string,
+): Promise<number | null> {
+  const snap = await adminDb
+    .collection(targetType === "owner" ? "owners" : "salons")
+    .doc(targetId)
+    .collection("private")
+    .doc("data")
+    .get();
+  const v = snap.data()?.paidMonthlyRate;
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
+
 // ─── Devis ──────────────────────────────────────────────────
 
 function num(v: unknown): number {
@@ -125,6 +146,8 @@ export function computeQuote(
   planId: PlanId,
   period: BillingPeriod,
   now = Date.now(),
+  promo: Promo | null = null,
+  paidMonthlyRate: number | null = null,
 ): Quote {
   const allowed = targetType === "salon" ? SALON_PLANS : OWNER_PLANS;
   if (!(allowed as PlanId[]).includes(planId)) {
@@ -142,6 +165,11 @@ export function computeQuote(
   const active = hasPlan && (expiresAt === 0 || expiresAt > now);
 
   const listPrice = planPriceFor(planId, period);
+  // Offre de lancement : remise sur le prix catalogue, tant qu'elle court.
+  const promoOn =
+    !!promo && promo.active && promo.endsAt > now && (period === "monthly" || promo.includeYearly);
+  const promoDiscount = promoOn ? Math.round((listPrice * promo!.percent) / 100) : 0;
+  const discounted = listPrice - promoDiscount;
   const days = PERIOD_DAYS[period];
 
   let kind: PurchaseKind = "new";
@@ -159,7 +187,10 @@ export function computeQuote(
       kind = "upgrade";
       if (expiresAt > now) {
         const remainingDays = (expiresAt - now) / DAY_MS;
-        credit = Math.floor((remainingDays / 30) * PLANS[currentPlan].monthlyPriceFcfa);
+        // Crédit au tarif réellement payé (remise de lancement comprise), jamais au-dessus du catalogue.
+        const monthly = PLANS[currentPlan].monthlyPriceFcfa;
+        const rate = paidMonthlyRate !== null && paidMonthlyRate >= 0 ? Math.min(paidMonthlyRate, monthly) : monthly;
+        credit = Math.floor((remainingDays / 30) * rate);
       }
       startFrom = now;
     } else {
@@ -168,8 +199,8 @@ export function computeQuote(
   }
 
   // On ne déduit jamais plus que (prix − minimum encaissable).
-  credit = Math.min(credit, Math.max(0, listPrice - MIN_CHARGE_FCFA));
-  const amount = Math.max(listPrice - credit, MIN_CHARGE_FCFA);
+  credit = Math.min(credit, Math.max(0, discounted - MIN_CHARGE_FCFA));
+  const amount = Math.max(discounted - credit, MIN_CHARGE_FCFA);
 
   return {
     targetType,
@@ -178,6 +209,9 @@ export function computeQuote(
     period,
     kind,
     listPrice,
+    promoDiscount,
+    promoPercent: promoOn ? promo!.percent : 0,
+    promoEndsAt: promoOn ? promo!.endsAt : 0,
     credit,
     amount,
     currency: "XAF",
@@ -256,6 +290,7 @@ export async function fulfillPayment(
         plan: planId,
         planActivatedAt: prolongs ? num(target.planActivatedAt) || now : now,
         planExpiresAt: expiresAt,
+        trialEndsAt: 0,
       });
       const inherited = getInheritedSalonPlan(planId as OwnerPlanId);
       salonSnaps.forEach((s) => {
@@ -263,10 +298,18 @@ export async function fulfillPayment(
       });
     }
 
+    // Tarif mensuel réellement payé (hors crédit), pour calculer un futur crédit d'upgrade.
+    const paidNet = Math.max(0, num(pay.listPrice) - num(pay.promoDiscount));
+    const paidMonthlyRate = paidNet > 0 ? Math.round(paidNet / (days / 30)) : 0;
+
     // Référence de paiement : sous-collection privée (jamais dans le doc public).
     tx.set(
       targetRef.collection("private").doc("data"),
-      { lastPaymentRef: `saspay:${pay.saspayPaymentId ?? paymentId}`, updatedAt: now },
+      {
+        lastPaymentRef: `saspay:${pay.saspayPaymentId ?? paymentId}`,
+        paidMonthlyRate,
+        updatedAt: now,
+      },
       { merge: true },
     );
 

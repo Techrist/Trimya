@@ -100,9 +100,9 @@ export default function ProprietairesPage() {
           <PlanBox
             name="Entreprise Pro"
             price="40 000"
-            description="Pour les chaînes ambitieuses : toute la puissance Pro sur 5 salons."
+            description="Pour les chaînes ambitieuses : toute la puissance Pro sur tous tes salons."
             features={[
-              "Jusqu'à 5 salons inclus",
+              "Salons illimités",
               "Tous les salons passent en Pro",
               "Réservations + abonnements + stats avancées",
               "Stats par coiffeur sur chaque salon",
