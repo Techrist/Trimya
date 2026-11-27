@@ -10,7 +10,7 @@ export const SUPPORTED_LOCALES: { code: Locale; label: string; flag: string }[] 
   { code: 'en', label: 'English', flag: '🇬🇧' },
 ];
 
-const dictionaries: Record<Locale, typeof fr> = { fr, en };
+const dictionaries: Record<Locale, Record<keyof typeof fr, string>> = { fr, en };
 const STORAGE_KEY = '@trimya/locale';
 
 let currentLocale: Locale = 'fr';

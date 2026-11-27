@@ -1,6 +1,6 @@
 import { fr } from './fr';
 
-export const en: typeof fr = {
+export const en: Record<keyof typeof fr, string> = {
   // ── Common ───────────────────────────────────────
   'common.cancel': 'Cancel',
   'common.confirm': 'Confirm',
