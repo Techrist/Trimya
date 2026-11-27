@@ -3,13 +3,11 @@ import { z } from "zod";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
 import { logServerError } from "@/lib/api-errors";
 import { handleOptions } from "@/lib/cors";
-import { renderInfoEmail, sendBrevoEmail } from "@/lib/brevo";
+import { createAccountRequest } from "@/lib/accounts";
 import { consumeProof } from "@/lib/email-otp";
 import { json } from "@/lib/http";
-import { LEGAL_VERSION } from "@/lib/legal";
 import { clientIp, consumeLimit, ipHash, RateLimitError } from "@/lib/rate-limit";
 import {
-  adminNotifyEmail,
   cleanPhone,
   cleanText,
   dailyCap,
@@ -17,6 +15,7 @@ import {
   emailKey,
   isDisposableEmail,
   passwordSchema,
+  proProfileSchema,
   signupEnabled,
 } from "@/lib/account-utils";
 
@@ -34,23 +33,6 @@ import {
  * robuste, textes nettoyés. Le mot de passe n'est jamais stocké ni loggé
  * par nos soins (transmis à Firebase Auth uniquement).
  */
-const Profile = z.discriminatedUnion("type", [
-  z.object({
-    type: z.literal("salon"),
-    name: z.string().min(2).max(80),
-    city: z.string().min(2).max(80),
-    ownerName: z.string().min(2).max(80),
-    phone: z.string().min(8).max(25),
-  }),
-  z.object({
-    type: z.literal("owner"),
-    name: z.string().min(2).max(80),
-    phone: z.string().min(8).max(25),
-    /** Nombre de salons de la chaîne (indicatif, aide à la validation). */
-    salonCount: z.number().int().min(1).max(50).optional(),
-    companyName: z.string().max(80).optional(),
-  }),
-]);
 
 const Body = z.object({
   email: z.string().email().max(254),
@@ -58,7 +40,7 @@ const Body = z.object({
   proof: z.string().regex(/^[a-f0-9]{64}$/),
   password: passwordSchema,
   consent: z.literal(true),
-  profile: Profile,
+  profile: proProfileSchema,
 });
 
 export async function OPTIONS(req: NextRequest) {
@@ -134,7 +116,6 @@ export async function POST(req: NextRequest) {
       uid = created.uid;
     }
 
-    const now = Date.now();
     const profile =
       b.profile.type === "salon"
         ? {
@@ -150,35 +131,15 @@ export async function POST(req: NextRequest) {
             ...(b.profile.companyName ? { companyName: cleanText(b.profile.companyName) } : {}),
           };
 
-    await adminDb.collection("accounts").doc(uid).set({
-      type: b.profile.type,
-      status: "pending",
+    await createAccountRequest({
+      uid,
       email,
       emailKey: key,
+      type: b.profile.type,
       profile,
-      consentAt: now,
-      consentVersion: LEGAL_VERSION,
       ipHash: ipH,
-      createdAt: now,
-      updatedAt: now,
+      provider: "password",
     });
-
-    // Alerte admin (best-effort) : une demande attend ta validation.
-    const label = b.profile.type === "salon" ? "Salon" : "Propriétaire";
-    const mail = renderInfoEmail({
-      title: `Nouvelle demande de compte — ${label}`,
-      paragraphs: [
-        `${profile.name} (${email}, ${phone}) demande un compte ${label.toLowerCase()}.`,
-        "Ouvre l'admin Trimya, page « Demandes », pour la valider ou la refuser.",
-      ],
-    });
-    void sendBrevoEmail({
-      to: adminNotifyEmail(),
-      subject: `Trimya — demande de compte ${label.toLowerCase()} à valider`,
-      htmlContent: mail.html,
-      textContent: mail.text,
-      tags: ["account-request"],
-    }).catch((e) => logServerError("auth/signup/create/notify", e));
 
     return json(origin, { ok: true, status: "pending" });
   } catch (e) {

@@ -8,7 +8,8 @@ import { TextField } from '@/components/TextField';
 import { Logo } from '@/components/Logo';
 import { LegalLinks } from '@/components/LegalLinks';
 import { AuthFooterLink } from '@/components/AuthFooterLink';
-import { accountErrorText, isStrongPassword } from '@/lib/accountErrors';
+import { SocialAuthBlock } from '@/components/SocialAuthBlock';
+import { accountErrorText, socialErrorText, isStrongPassword } from '@/lib/accountErrors';
 import {
   requestSignupCode,
   resolveClientDestination,
@@ -17,6 +18,8 @@ import {
   verifySignupCode,
 } from '@/services/account';
 import { storage } from '@/services/storage';
+import { signOut } from '@/services/auth';
+import { signInWithGoogle } from '@/services/socialAuth';
 import { useT } from '@/i18n';
 import { colors, spacing, typography } from '@/theme';
 import { RootStackParamList } from '@/navigation/types';
@@ -74,6 +77,28 @@ export function ClientSignUpScreen() {
       nav.dispatch(CommonActions.reset({ index: 0, routes: [{ name: dest }] }));
     } catch (e) {
       setError(accountErrorText(e, t));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+  const google = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const user = await signInWithGoogle();
+      try {
+        const dest = await resolveClientDestination(user);
+        await storage.setCustomerId(user.uid);
+        nav.dispatch(CommonActions.reset({ index: 0, routes: [{ name: dest }] }));
+      } catch (e) {
+        // Compte Pro dans l'app client : on referme la session.
+        await signOut().catch(() => undefined);
+        throw e;
+      }
+    } catch (e) {
+      setError(socialErrorText(e, t) || null);
     } finally {
       setLoading(false);
     }
@@ -176,6 +201,8 @@ export function ClientSignUpScreen() {
             />
           </>
         )}
+
+        {step === 'creds' ? <SocialAuthBlock onGoogle={google} loading={loading} /> : null}
 
         <AuthFooterLink
           text={t('account.signUp.alreadyHave')}

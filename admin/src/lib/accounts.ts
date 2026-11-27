@@ -2,7 +2,9 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import { adminDb } from "./firebase-admin";
 import { renderInfoEmail, sendBrevoEmail } from "./brevo";
-import { cleanText } from "./account-utils";
+import { adminNotifyEmail, cleanText } from "./account-utils";
+import { LEGAL_VERSION } from "./legal";
+import { logServerError } from "./api-errors";
 import { TRIAL_PRO_DAYS, TRIAL_PRO_MS } from "./plans";
 import { buildActivationCode, slugify } from "./slug";
 
@@ -144,6 +146,55 @@ export async function approveAccount(uid: string, adminUid: string): Promise<{
   const emailSent = await sendApprovalEmail(uid);
 
   return { type, salonId, emailSent };
+}
+
+/**
+ * Enregistre une DEMANDE de compte Pro (statut « pending ») et prévient
+ * l'admin par email. Partagé par l'inscription par mot de passe et par la
+ * connexion Google / Apple. Ne crée ni salon ni propriétaire : c'est l'admin
+ * qui valide (approveAccount).
+ */
+export async function createAccountRequest(input: {
+  uid: string;
+  email: string;
+  emailKey: string;
+  type: "salon" | "owner";
+  profile: Record<string, unknown>;
+  ipHash: string;
+  provider: "password" | "google.com" | "apple.com";
+}): Promise<void> {
+  const now = Date.now();
+  await adminDb.collection("accounts").doc(input.uid).set({
+    type: input.type,
+    status: "pending",
+    email: input.email,
+    emailKey: input.emailKey,
+    profile: input.profile,
+    provider: input.provider,
+    consentAt: now,
+    consentVersion: LEGAL_VERSION,
+    ipHash: input.ipHash,
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  const label = input.type === "salon" ? "Salon" : "Propriétaire";
+  const name = str(input.profile.name, 80);
+  const phone = str(input.profile.phone, 25);
+  const mail = renderInfoEmail({
+    title: `Nouvelle demande de compte — ${label}`,
+    paragraphs: [
+      `${name} (${input.email}, ${phone}) demande un compte ${label.toLowerCase()}.`,
+      "Ouvre l'admin Trimya, page « Demandes », pour la valider ou la refuser.",
+    ],
+  });
+  void sendBrevoEmail({
+    to: adminNotifyEmail(),
+    subject: `Trimya — demande de compte ${label.toLowerCase()} à valider`,
+    htmlContent: mail.html,
+    textContent: mail.text,
+    tags: ["account-request"],
+  }).catch((e) => logServerError("accounts/createRequest/notify", e));
 }
 
 /** Adresse de l'app Trimya Pro (lien des emails). */

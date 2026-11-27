@@ -8,9 +8,11 @@ import { TextField } from '@/components/TextField';
 import { Logo } from '@/components/Logo';
 import { LegalLinks } from '@/components/LegalLinks';
 import { AuthFooterLink } from '@/components/AuthFooterLink';
-import { accountErrorText } from '@/lib/accountErrors';
+import { SocialAuthBlock } from '@/components/SocialAuthBlock';
+import { accountErrorText, socialErrorText } from '@/lib/accountErrors';
 import { resolveClientDestination, signInWithPassword } from '@/services/account';
 import { signOut } from '@/services/auth';
+import { signInWithGoogle } from '@/services/socialAuth';
 import { storage } from '@/services/storage';
 import { useScreenCapturePrevention } from '@/hooks/useScreenCapturePrevention';
 import { useT } from '@/i18n';
@@ -49,6 +51,28 @@ export function ClientSignInScreen() {
       }
     } catch (e) {
       setError(accountErrorText(e, t));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+  const google = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const user = await signInWithGoogle();
+      try {
+        const dest = await resolveClientDestination(user);
+        await storage.setCustomerId(user.uid);
+        nav.dispatch(CommonActions.reset({ index: 0, routes: [{ name: dest }] }));
+      } catch (e) {
+        // Compte Pro dans l'app client : on referme la session.
+        await signOut().catch(() => undefined);
+        throw e;
+      }
+    } catch (e) {
+      setError(socialErrorText(e, t) || null);
     } finally {
       setLoading(false);
     }
@@ -101,6 +125,8 @@ export function ClientSignInScreen() {
           onPress={() => nav.navigate('ForgotPassword')}
           variant="ghost"
         />
+
+        <SocialAuthBlock onGoogle={google} loading={loading} />
 
         <AuthFooterLink
           text={t('account.signIn.noAccount')}

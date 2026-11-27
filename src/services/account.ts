@@ -211,3 +211,29 @@ export async function resolveClientDestination(
   const customer = await getCustomer(user.uid).catch(() => null);
   return customer ? 'ClientTabs' : 'ClientName';
 }
+
+// ─── Demande de compte Pro après connexion Google / Apple ────
+
+/**
+ * Crée la demande de compte Pro d'un utilisateur déjà connecté via Google /
+ * Apple (email vérifié par le fournisseur : ni code ni mot de passe).
+ */
+export async function submitSocialSignup(profile: SignupProfile): Promise<void> {
+  const user = auth.currentUser;
+  if (!user) throw new Error('invalid_token');
+  let res: Response;
+  try {
+    res = await fetch(`${ADMIN_API_URL}/api/auth/signup/social`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${await user.getIdToken()}`,
+      },
+      body: JSON.stringify({ consent: true, profile }),
+    });
+  } catch {
+    throw new Error('network_error');
+  }
+  const data = (await res.json().catch(() => ({}))) as { error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'internal_error');
+}

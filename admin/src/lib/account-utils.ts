@@ -96,3 +96,22 @@ export const passwordSchema = z
   .max(128)
   .regex(/[A-Za-z]/)
   .regex(/\d/);
+
+/** Profil saisi pour une demande de compte Pro (salon ou propriétaire). */
+export const proProfileSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("salon"),
+    name: z.string().min(2).max(80),
+    city: z.string().min(2).max(80),
+    ownerName: z.string().min(2).max(80),
+    phone: z.string().min(8).max(25),
+  }),
+  z.object({
+    type: z.literal("owner"),
+    name: z.string().min(2).max(80),
+    phone: z.string().min(8).max(25),
+    /** Nombre de salons de la chaîne (indicatif, aide à la validation). */
+    salonCount: z.number().int().min(1).max(50).optional(),
+    companyName: z.string().max(80).optional(),
+  }),
+]);

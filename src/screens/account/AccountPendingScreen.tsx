@@ -37,6 +37,18 @@ export function AccountPendingScreen() {
     return subscribeAccount(user.uid, setAccount);
   }, [user, nav]);
 
+  // Connecté (ex. via Google) mais sans demande : on propose de la faire.
+  useEffect(() => {
+    if (user && account === null) {
+      nav.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{ name: 'AccountSignUp', params: { social: true } }],
+        }),
+      );
+    }
+  }, [account, user, nav]);
+
   // Demande validée → on ouvre l'espace correspondant.
   useEffect(() => {
     if (!user || !account || account.status !== 'active') return;
@@ -51,7 +63,7 @@ export function AccountPendingScreen() {
     navigateToRoot(nav);
   };
 
-  if (account === undefined) {
+  if (account === undefined || account === null) {
     return (
       <Screen centered>
         <ActivityIndicator color={colors.primary} size="large" />

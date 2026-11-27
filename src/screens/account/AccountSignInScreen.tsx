@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -8,10 +8,13 @@ import { TextField } from '@/components/TextField';
 import { Logo } from '@/components/Logo';
 import { LegalLinks } from '@/components/LegalLinks';
 import { AuthFooterLink } from '@/components/AuthFooterLink';
-import { accountErrorText } from '@/lib/accountErrors';
+import { SocialAuthBlock } from '@/components/SocialAuthBlock';
+import { accountErrorText, socialErrorText } from '@/lib/accountErrors';
 import { navigateToRoot } from '@/navigation/navigateToRoot';
 import { resolveDestination, signInWithPassword } from '@/services/account';
 import { signOut } from '@/services/auth';
+import { auth } from '@/services/firebase';
+import { signInWithGoogle } from '@/services/socialAuth';
 import { useAccountNavigation } from '@/hooks/useAccountNavigation';
 import { useScreenCapturePrevention } from '@/hooks/useScreenCapturePrevention';
 import { useApp } from '@/contexts/AppContext';
@@ -32,6 +35,13 @@ export function AccountSignInScreen() {
   const goTo = useAccountNavigation();
   useScreenCapturePrevention();
 
+  // Déjà connecté avec un compte email (demande en attente, session restaurée) :
+  // l'écran d'état redirige selon la situation du compte.
+  useEffect(() => {
+    const u = auth.currentUser;
+    if (u && !u.isAnonymous) nav.replace('AccountPending');
+  }, [nav]);
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -51,6 +61,29 @@ export function AccountSignInScreen() {
       }
     } catch (e) {
       setError(accountErrorText(e, t));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const google = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const user = await signInWithGoogle();
+      try {
+        await goTo(await resolveDestination(user));
+      } catch (e) {
+        // Compte Google sans compte Pro : on propose de faire la demande.
+        if (e instanceof Error && e.message === 'no_account') {
+          nav.navigate('AccountSignUp', { social: true });
+          return;
+        }
+        await signOut().catch(() => undefined);
+        throw e;
+      }
+    } catch (e) {
+      setError(socialErrorText(e, t) || null);
     } finally {
       setLoading(false);
     }
@@ -111,6 +144,8 @@ export function AccountSignInScreen() {
           }}
           variant="ghost"
         />
+        <SocialAuthBlock onGoogle={google} loading={loading} />
+
         <AuthFooterLink
           text={t('account.signIn.noAccount')}
           linkText={t('account.signIn.signUp')}

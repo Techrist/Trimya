@@ -19,6 +19,8 @@ interface ButtonProps {
   disabled?: boolean;
   style?: ViewStyle;
   fullWidth?: boolean;
+  /** Icône affichée avant le label (variantes secondary / ghost). */
+  icon?: React.ReactNode;
 }
 
 const IS_ANDROID = Platform.OS === 'android';
@@ -118,6 +120,7 @@ function PlainButton({
   disabled = false,
   style,
   fullWidth = true,
+  icon,
 }: ButtonProps) {
   const isDisabled = disabled || loading;
   const textColor = variant === 'secondary' ? colors.text : colors.textMuted;
@@ -138,9 +141,12 @@ function PlainButton({
       {loading ? (
         <ActivityIndicator color={textColor} />
       ) : (
-        <Text style={[styles.label, { color: textColor }]} numberOfLines={1}>
-          {label}
-        </Text>
+        <View style={styles.plainRow}>
+          {icon ? <View style={styles.icon}>{icon}</View> : null}
+          <Text style={[styles.label, { color: textColor }]} numberOfLines={1}>
+            {label}
+          </Text>
+        </View>
       )}
     </Pressable>
   );
@@ -181,6 +187,8 @@ const styles = StyleSheet.create({
   contentAndroid: {
     elevation: 2,
   },
+  plainRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  icon: { marginRight: 10 },
   pressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
   disabled: { opacity: 0.5 },
   label: {

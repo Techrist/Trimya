@@ -15,9 +15,12 @@ import {
   requestSignupCode,
   signInWithPassword,
   submitSignup,
+  submitSocialSignup,
   verifySignupCode,
   type AccountType,
+  type SignupProfile,
 } from '@/services/account';
+import { signOut } from '@/services/auth';
 import { useApp } from '@/contexts/AppContext';
 import { useT } from '@/i18n';
 import { colors, radius, spacing, typography } from '@/theme';
@@ -39,8 +42,13 @@ export function AccountSignUpScreen() {
   const { setMode } = useApp();
 
   const preset = route.params?.type;
+  // Mode « social » : déjà connecté via Google, email vérifié par Google →
+  // ni mot de passe ni code, on passe directement au profil.
+  const social = route.params?.social === true;
   const [type, setType] = useState<AccountType | null>(preset ?? null);
-  const [step, setStep] = useState<Step>(preset ? 'creds' : 'type');
+  const [step, setStep] = useState<Step>(
+    preset ? (social ? 'profile' : 'creds') : 'type',
+  );
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -99,6 +107,24 @@ export function AccountSignUpScreen() {
     setError(null);
     try {
       const count = Number.parseInt(salonCount, 10);
+      const profile: SignupProfile =
+        type === 'salon'
+          ? { type: 'salon', name, city, ownerName: managerName, phone }
+          : {
+              type: 'owner',
+              name,
+              phone,
+              ...(company.trim() ? { companyName: company } : {}),
+              ...(Number.isFinite(count) && count >= 1 && count <= 50
+                ? { salonCount: count }
+                : {}),
+            };
+      if (social) {
+        await submitSocialSignup(profile);
+        await setMode(type);
+        nav.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'AccountPending' }] }));
+        return;
+      }
       await submitSignup({
         email,
         proof,
@@ -174,7 +200,7 @@ export function AccountSignUpScreen() {
                 style={styles.typeCard}
                 onPress={() => {
                   setType(value);
-                  setStep('creds');
+                  setStep(social ? 'profile' : 'creds');
                 }}
               >
                 <Icon color={colors.primary} size={26} strokeWidth={2.2} />
@@ -330,11 +356,22 @@ export function AccountSignUpScreen() {
           </>
         ) : null}
 
-        <AuthFooterLink
-          text={t('account.signUp.alreadyHave')}
-          linkText={t('account.signUp.signInLink')}
-          onPress={() => nav.replace('AccountSignIn')}
-        />
+        {social ? (
+          <Button
+            label={t('common.cancel')}
+            onPress={async () => {
+              await signOut().catch(() => undefined);
+              nav.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'AccountSignIn' }] }));
+            }}
+            variant="ghost"
+          />
+        ) : (
+          <AuthFooterLink
+            text={t('account.signUp.alreadyHave')}
+            linkText={t('account.signUp.signInLink')}
+            onPress={() => nav.replace('AccountSignIn')}
+          />
+        )}
         <LegalLinks variant="inline" />
       </ScrollView>
     </Screen>

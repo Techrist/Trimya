@@ -44,7 +44,7 @@ export type RootStackParamList = {
 
   // Owner flow (Trimya Pro uniquement, plans Entreprise)
   AccountSignIn: undefined;
-  AccountSignUp: { type?: 'salon' | 'owner' } | undefined;
+  AccountSignUp: { type?: 'salon' | 'owner'; social?: boolean } | undefined;
   ForgotPassword: undefined;
   AccountPending: undefined;
   OwnerTabs: undefined;
