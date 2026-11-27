@@ -16,7 +16,7 @@
  * C'est géré côté React dans src/hooks/useServiceWorkerUpdate.ts.
  */
 
-const CACHE_VERSION = 'trimya-v1';
+const CACHE_VERSION = 'trimya-v2';
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const IMAGES_CACHE = `${CACHE_VERSION}-images`;
 

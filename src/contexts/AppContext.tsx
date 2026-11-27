@@ -7,6 +7,7 @@ import {
   getStoredMagicLinkTarget,
 } from '@/services/emailAuth';
 import { storage } from '@/services/storage';
+import { applyAppResetIfNeeded } from '@/lib/appReset';
 import { AppMode } from '@/types';
 
 interface AppContextValue {
@@ -57,6 +58,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let unsubAuth: (() => void) | undefined;
     (async () => {
+      // Réinitialisation globale (déconnexion + vidage local) si la version a changé.
+      await applyAppResetIfNeeded();
       const [m, o, s, oid] = await Promise.all([
         storage.getMode(),
         storage.isOnboarded(),
