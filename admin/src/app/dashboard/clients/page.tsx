@@ -133,7 +133,7 @@ export default function ClientsListPage() {
                     {c.name ?? c.phone}
                   </div>
                   <div className="text-xs text-text-dim">
-                    {salonNameById.get(c.salonId) ?? c.salonId}
+                    {c.salonId ? (salonNameById.get(c.salonId) ?? c.salonId) : "Sans salon"}
                   </div>
                 </div>
               </div>
@@ -234,7 +234,7 @@ export default function ClientsListPage() {
                   <CustomerRow
                     key={c.id}
                     customer={c}
-                    salonName={salonNameById.get(c.salonId) ?? c.salonId}
+                    salonName={c.salonId ? (salonNameById.get(c.salonId) ?? c.salonId) : "Sans salon"}
                   />
                 ))
               )}

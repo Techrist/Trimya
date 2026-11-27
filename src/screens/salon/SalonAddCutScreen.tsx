@@ -20,7 +20,7 @@ import { Card } from '@/components/Card';
 import { ProgressIndicator } from '@/components/ProgressIndicator';
 import { BarberAvatar } from '@/components/BarberAvatar';
 import { Avatar } from '@/components/Avatar';
-import { getCustomer } from '@/services/customers';
+import { getCustomer, lookupCustomerForScan } from '@/services/customers';
 import { addCut } from '@/services/cuts';
 import { subscribeBarbers } from '@/services/barbers';
 import {
@@ -66,7 +66,15 @@ export function SalonAddCutScreen() {
 
   const reloadCustomer = async () => {
     try {
-      const c = await getCustomer(customerId);
+      // Lecture directe (client déjà rattaché à ce salon) ; sinon, un client
+      // SANS salon (premier scan) est lu via le serveur.
+      let c: Customer | null = null;
+      try {
+        c = await getCustomer(customerId);
+      } catch (readErr) {
+        c = salonId ? await lookupCustomerForScan(customerId, salonId) : null;
+        if (!c) throw readErr;
+      }
       if (!c) {
         setError(t('salon.addCut.customerNotFound'));
         return;

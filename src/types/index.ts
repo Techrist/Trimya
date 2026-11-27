@@ -197,6 +197,7 @@ export interface Customer {
   phone: string;
   name?: string;
   photo?: string;
+  /** Salon de rattachement. Chaîne vide = pas encore rattaché (nouveau client). */
   salonId: string;
   currentCount: number;
   totalCuts: number;
@@ -258,6 +259,8 @@ export interface Customer {
     requestedAt: number;
     expiresAt: number;
   } | null;
+  /** Date du rattachement au salon (premier scan). */
+  attachedAt?: number;
 }
 
 export type CustomerSort = 'lastVisit' | 'progress' | 'totalCuts' | 'name';

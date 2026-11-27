@@ -151,9 +151,14 @@ export async function POST(req: NextRequest) {
         subscriptionExpiresAt?: number;
       };
 
-      // 4b) Cross-salon shared ?
-      let effectiveSalonId = customer.salonId;
-      if (customer.salonId !== salonId) {
+      // 4b) Premier scan : un client sans salon (salonId vide) est rattaché
+      //     DÉFINITIVEMENT au salon qui enregistre sa première coupe. Les
+      //     scans d'un autre salon passeront ensuite par la migration (ou
+      //     la fidélité partagée de la chaîne), comme avant.
+      const unattached = !customer.salonId;
+      let effectiveSalonId = unattached ? salonId : customer.salonId;
+      // 4b-bis) Cross-salon shared ?
+      if (!unattached && customer.salonId !== salonId) {
         // Autorisé uniquement si même owner + loyaltySharedWithOwner
         const homeSalonSnap = await tx.get(
           adminDb.collection("salons").doc(customer.salonId),
@@ -178,12 +183,14 @@ export async function POST(req: NextRequest) {
 
       const cutRef = adminDb.collection("cuts").doc();
       const now = Date.now();
+      const attach = unattached ? { salonId, attachedAt: now } : {};
 
       // 4c) Abonné illimité → pas de progression fidélité
       if (isSubscriptionActive(customer)) {
         tx.update(customerRef, {
           totalCuts: customer.totalCuts + 1,
           lastVisitAt: now,
+          ...attach,
         });
         tx.set(cutRef, {
           id: cutRef.id,
@@ -215,6 +222,7 @@ export async function POST(req: NextRequest) {
         totalCuts: customer.totalCuts + 1,
         totalRewards: customer.totalRewards + (isReward ? 1 : 0),
         lastVisitAt: now,
+        ...attach,
       });
       tx.set(cutRef, {
         id: cutRef.id,

@@ -10,7 +10,7 @@ import {
   onSnapshot,
   orderBy,
 } from 'firebase/firestore';
-import { db } from './firebase';
+import { auth, db } from './firebase';
 import { Customer } from '@/types';
 
 export async function findCustomerByPhone(
@@ -212,4 +212,34 @@ export async function cancelAccountDeletion(customerId: string): Promise<void> {
   await updateDoc(doc(db, 'customers', customerId), {
     deletionRequestedAt: null,
   });
+}
+
+/**
+ * Lecture, par un kiosque, d'un client qu'il vient de scanner et qui n'est
+ * encore rattaché à aucun salon (les règles Firestore ne l'autorisent pas :
+ * la lecture passe par le serveur). Le rattachement définitif a lieu à la
+ * première coupe enregistrée.
+ */
+export async function lookupCustomerForScan(
+  customerId: string,
+  salonId: string,
+): Promise<Customer | null> {
+  const user = auth.currentUser;
+  if (!user) return null;
+  const base = process.env.EXPO_PUBLIC_ADMIN_API_URL || 'https://admin.trimya.app';
+  try {
+    const res = await fetch(`${base}/api/customers/lookup`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${await user.getIdToken()}`,
+      },
+      body: JSON.stringify({ customerId, salonId }),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { customer?: Customer };
+    return data.customer ?? null;
+  } catch {
+    return null;
+  }
 }

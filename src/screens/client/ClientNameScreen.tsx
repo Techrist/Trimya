@@ -17,8 +17,6 @@ import { RootStackParamList } from '@/navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'ClientName'>;
 
-const DEFAULT_SALON_ID = process.env.EXPO_PUBLIC_DEFAULT_SALON_ID || 'default-salon';
-
 /**
  * Dernier écran de l'inscription client. Collecte les informations
  * personnelles minimales avant de créer le document `customers/{uid}` :
@@ -84,7 +82,9 @@ export function ClientNameScreen() {
         name: trimmedFirst,
         lastName: trimmedLast || undefined,
         email: trimmedEmail || undefined,
-        salonId: DEFAULT_SALON_ID,
+        // Aucun salon à l'inscription : le client est rattaché définitivement
+        // au salon qui enregistre sa première coupe (scan de son QR).
+        salonId: '',
         termsAcceptedAt: Date.now(),
         termsVersion: LEGAL_VERSION,
       });

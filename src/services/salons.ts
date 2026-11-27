@@ -70,6 +70,11 @@ export function subscribeSalon(
   salonId: string,
   cb: (salon: Salon | null) => void,
 ): () => void {
+  // Client pas encore rattaché (salonId vide) : pas de salon à suivre.
+  if (!salonId) {
+    cb(null);
+    return () => undefined;
+  }
   return onSnapshot(
     doc(db, 'salons', salonId),
     (snap) => {
@@ -87,6 +92,8 @@ export function subscribeSalon(
 }
 
 export async function getSalon(salonId: string): Promise<Salon | null> {
+  // Client pas encore rattaché (salonId vide) : aucun salon.
+  if (!salonId) return null;
   const ref = doc(db, 'salons', salonId);
   const snap = await getDoc(ref);
   if (!snap.exists()) return null;
